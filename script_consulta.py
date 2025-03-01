@@ -10,6 +10,7 @@ mydb = mysql.connector.connect(
 
 if mydb.is_connected():
     print('Conectado ao Banco de Dados.\n')
+    print('Conectado')
 
 cursor = mydb.cursor()
 
