@@ -41,11 +41,6 @@ def init():
     # Verificando servidor no banco de dados:
     print("\n⏳ Comparando informações com o banco de dados...")
 
-    database_server_verify(system_info, cpu_info, ram_info, idEmpresa)
-    time.sleep(2)
-    database_gpu_verify(gpu_info, system_info)
-    time.sleep(1)
-
 
     # Menu de pções para o usuário:
     print("🔧 Menu de Ações:")
@@ -98,39 +93,6 @@ def database_server_verify(
         connection.commit()
 
         print("\n✅ Servidor novo registrado com sucesso...")
-
-
-
-
-
-
-
-def database_gpu_verify(
-        gpu_info: HardwareData.GPUData,
-        system_info: HardwareData.SystemData
-):
-    # Verificando placas de vídeo
-    for gpu in gpu_info.gpus:
-        mysql.execute("SELECT * FROM GPU WHERE uuid = %s", (gpu.uuid,))
-        result = mysql.fetchone()
-
-        if result:
-            if result[3] != system_info.motherboardUuid:
-                mysql.execute("UPDATE GPU SET fkServer = %s WHERE uuid = %s", (system_info.motherboardUuid, gpu.uuid))
-                print(f"⚠️ Placa de vídeo {gpu.name} transferida de servidor. \n")
-
-            print(f"✅ Placa de video {gpu.name} verificada e operante. \n")
-
-        else:
-            mysql.execute("INSERT INTO GPU VALUES (%s, %s, %s, %s)",
-                              (gpu.uuid, gpu.name, gpu.memoryTotal, system_info.motherboardUuid))
-            print(f"✅ Placa de video {gpu.name} cadastrada com sucesso. \n")
-
-        connection.commit()
-
-
-
-
 
 
 

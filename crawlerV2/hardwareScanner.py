@@ -1,6 +1,6 @@
-import HardwareData
+from crawlerV2 import HardwareData
 import time
-from dbConnection import cursor as mysql, connection
+from crawlerV2.dbConnection import cursor as mysql, connection
 
 
 def company_data():
