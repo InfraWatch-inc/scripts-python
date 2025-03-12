@@ -166,16 +166,7 @@ def monitoring(
         insert_server_log()
         insert_gpu_log()
 
-        # Formatação ANSI: \33[: escape ANSI, 1 = negrito; 99 = cor; m = Finaliza o ANSI
-
-        for _ in range(200):
-            if keyboard.is_pressed("esc"):
-                print("\n🛑 \033[1;31mInterrompendo a captura de dados... 🔄")
-                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                print("⚠️  \033[1;33mA captura foi interrompida com sucesso.")
-                exit(0)
-
-            time.sleep(0.01)
+        time.sleep(2)
 
 
 

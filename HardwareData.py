@@ -43,9 +43,11 @@ class CPUData:
     times: float
     freq: object
     use: float
+    cpu_model: str or None
 
     def __init__(self):
         self.update()
+        self.__cpu_model()
 
 
     def update(self):
@@ -54,6 +56,21 @@ class CPUData:
         self.times = psutil.cpu_times()
         self.freq = psutil.cpu_freq().current
         self.use = cpu_percent()
+
+    def __cpu_model (self):
+        SO = platform.system()
+        try:
+            windows_sh = ["powershell", "-Command", "Get-WmiObject Win32_Processor | Select-Object -ExpandProperty Name"]
+
+            linux_sh = "cat /proc/cpuinfo | grep 'model name' | uniq"
+
+            sh = windows_sh if SO == "Windows" else linux_sh
+
+            self.cpu_model = subprocess.check_output(sh, shell=True).decode().strip()
+
+        except subprocess.SubprocessError as e:
+            self.cpu_model = None
+            print(e)
 
     def __str__(self):
         return f"(cores={self.cores}, threads={self.threads}, times={self.times}, freq={self.freq})"
