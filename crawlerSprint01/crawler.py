@@ -36,13 +36,15 @@ def init():
         opt = input("Digite uma opção: ")
 
         if opt == "1":
-            try:
-                monitoring(system_info, cpu_info, ram_info, gpu_info)
+            monitoring(system_info, cpu_info, ram_info, gpu_info)
+            # try:
 
-            except Exception as error:
-                if error.args[0] == 1452:
-                    print("\033[1;31mEncerrando captura:\033[0m Este servidor não está cadastrado em nosso sistema.")
+            # except Exception as error:
+            #     if error.args[0] == 1452:
+            #         print("\033[1;31mEncerrando captura:\033[0m Este servidor não está cadastrado em nosso sistema.")
+            
             break
+            
         elif opt == "2":
             exit(f"Até a próxima!")
         else:
@@ -65,6 +67,9 @@ def monitoring(
 
     def insert_gpu_log():
         for gpu in gpu_info.gpus:
+            if gpu.load != gpu.load:
+                return
+            
             mysql.execute("INSERT INTO GPUMonitoring (GPUload, vramUSed, temperature, fkGPU) VALUES (%s, %s, %s, %s)", (
                 round(gpu.load * 100, 2), gpu.memoryUsed, gpu.temperature, gpu.uuid
             ))
