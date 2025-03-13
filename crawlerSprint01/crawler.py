@@ -48,9 +48,6 @@ def init():
         else:
             print("Opção inválida!")
 
-
-
-
 def monitoring(
         system_info: HardwareData.SystemData,
         cpu_info: HardwareData.CPUData,

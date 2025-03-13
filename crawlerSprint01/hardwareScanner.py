@@ -1,7 +1,6 @@
-from crawlerV2 import HardwareData
+import HardwareData
 import time
-from crawlerV2.dbConnection import cursor as mysql, connection
-
+from dbConnection import cursor as mysql, connection
 
 def company_data():
     print("\n 🔑 Antes de continuar, precisamos validar sua identidade...")
@@ -35,7 +34,6 @@ def init():
 
     for gpu in gpu_info.gpus:
         print(f"🖥️ Placa de vídeo: {gpu.name}")
-
 
     id_empresa = company_data()
 
@@ -77,7 +75,6 @@ def database_server_verify(
         connection.commit()
 
         print("\n✅ Servidor novo registrado com sucesso...")
-
 
 
 def database_gpu_verify(
