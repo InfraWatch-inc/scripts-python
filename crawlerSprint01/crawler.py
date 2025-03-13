@@ -85,6 +85,7 @@ def monitoring(
             time.sleep(2)
         except:
             print("")
+            exit()
 
 
 init()
