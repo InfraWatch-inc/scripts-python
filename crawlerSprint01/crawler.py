@@ -42,7 +42,8 @@ def init():
             except Exception as error:
                 if error.args[0] == 1452:
                     print("\033[1;31mEncerrando captura:\033[0m Este servidor não está cadastrado em nosso sistema.")
-            
+                else:
+                    print(error)
             break
             
         elif opt == "2":
@@ -60,7 +61,7 @@ def monitoring(
           "🛑 Pressione \033[1;31mCTRL + C\033[0m para encerrar a captura.")
 
     def insert_server_log():
-        mysql.execute("INSERT INTO RegistroServidor (usoCPU, usoRAM, clock, fkServer) VALUES (%s, %s, %s, %s)", (
+        mysql.execute("INSERT INTO RegistroServidor (usoCPU, usoRAM, clock, fkServidor) VALUES (%s, %s, %s, %s)", (
             cpu_info.use, ram_info.used, cpu_info.freq, system_info.motherboardUuid
         ))
         connection.commit()
