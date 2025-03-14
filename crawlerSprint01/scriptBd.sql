@@ -19,6 +19,7 @@ CREATE TABLE User (
 
 CREATE TABLE Server (
 	uuidMotherboard VARCHAR(255) PRIMARY KEY,
+    tagName VARCHAR(80) NOT NULL,
     cpuCores INT NOT NULL,
     cpuThreads INT NOT NULL,
     RAM	INT NOT NULL,
