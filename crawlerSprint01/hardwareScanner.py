@@ -37,10 +37,12 @@ def init():
 
     id_empresa = company_data()
 
+    tagName = input("\n🔑 Insira um nome para o servidor: ")
+
     # Verificando servidor no banco de dados:
     print("\n⏳ Comparando informações com o banco de dados...")
 
-    database_server_verify(system_info, cpu_info, ram_info, id_empresa)
+    database_server_verify(system_info, cpu_info, ram_info, tagName, id_empresa)
     time.sleep(2)
     database_gpu_verify(gpu_info, system_info)
     time.sleep(1)
@@ -49,9 +51,10 @@ def database_server_verify(
         system_info: HardwareData.SystemData,
         cpu_info: HardwareData.CPUData,
         ram_info: HardwareData.RAMData,
+        tagName: str,
         company: int
 ):
-    mysql.execute("SELECT * FROM Server WHERE uuidMotherboard = %s", (system_info.motherboardUuid,))
+    mysql.execute("SELECT * FROM Servidor WHERE uuidPlacaMae = %s", (system_info.motherboardUuid,))
     verify_motherboard_uuid = mysql.fetchone()
 
     if verify_motherboard_uuid:
@@ -60,8 +63,8 @@ def database_server_verify(
         if cores != cpu_info.cores or threads != cpu_info.threads or ram != ram_info.total or so != system_info.SO\
                 or version != system_info.version:
 
-            mysql.execute("UPDATE Server SET cpuCores = %s, cpuThreads = %s, RAM = %s, SO = %s, version = %s",
-                          (cpu_info.cores, cpu_info.threads, ram_info.total, system_info.SO, system_info.version))
+            mysql.execute("UPDATE Servidor SET cpuCores = %s, cpuThreads = %s, RAM = %s, SO = %s, version = %s WHERE uuidPlacaMae = %s",
+                          (cpu_info.cores, cpu_info.threads, ram_info.total, system_info.SO, system_info.version, system_info.motherboardUuid))
             connection.commit()
 
             print("\n🆕 Hardware novo detectado. A base de dados foi atualizada.")
@@ -69,8 +72,8 @@ def database_server_verify(
         print("\n✅ Servidor existente no banco de dados e validado com sucesso.")
 
     else:
-        mysql.execute("INSERT INTO Server VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                      (system_info.motherboardUuid, cpu_info.cores, cpu_info.threads, ram_info.total, system_info.SO,
+        mysql.execute("INSERT INTO Servidor VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                      (system_info.motherboardUuid, tagName, cpu_info.cores, cpu_info.threads, ram_info.total, system_info.SO,
                        system_info.version, company))
         connection.commit()
 

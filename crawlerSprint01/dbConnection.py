@@ -1,9 +1,9 @@
 import mysql.connector
 
 connection = mysql.connector.connect(
-    host="44.222.223.79",
-    user="admin",
-    password="urubu100",
+    host="localhost",
+    user="root",
+    password="",
     database="infrawatch"
 )
 
