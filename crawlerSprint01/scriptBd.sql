@@ -1,3 +1,4 @@
+-- Active: 1741828804228@@54.198.115.160@3306
 DROP DATABASE IF EXISTS infrawatch;
 CREATE DATABASE infrawatch;
 USE infrawatch;
@@ -23,7 +24,7 @@ CREATE TABLE Server (
     cpuThreads INT NOT NULL,
     RAM	INT NOT NULL,
     SO VARCHAR(40) NOT NULL,
-    version VARCHAR(10) NOT NULL,
+    version VARCHAR(45) NOT NULL,
     fkCompany INT NOT NULL,
     CONSTRAINT fk_company_server foreign key (fkCompany) REFERENCES Company(idCompany)
 );
