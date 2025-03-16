@@ -26,8 +26,8 @@ CREATE TABLE Servidor (
     RAM	INT NOT NULL,
     SO VARCHAR(40) NOT NULL,
     version VARCHAR(45) NOT NULL,
-    fkCompany INT NOT NULL,
-    CONSTRAINT fk_company_server foreign key (fkCompany) REFERENCES Company(idCompany)
+    fkEmpresa INT NOT NULL,
+    CONSTRAINT fk_company_server foreign key (fkEmpresa) REFERENCES Empresa(idEmpresa)
 );
 
 CREATE TABLE GPU (
