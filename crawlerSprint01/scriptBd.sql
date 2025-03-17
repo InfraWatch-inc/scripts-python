@@ -1,18 +1,30 @@
--- Active: 1741828804228@@54.198.115.160@3306
 DROP DATABASE IF EXISTS infrawatch;
 CREATE DATABASE infrawatch;
 USE infrawatch;
 
+CREATE TABLE Endereco (
+    idEndereco INT PRIMARY KEY AUTO_INCREMENT,
+    cep CHAR(15) NOT NULL,
+    logradouro VARCHAR(45) NOT NULL,
+    numero INT NOT NULL,
+    cidade VARCHAR(80) NOT NULL,
+    estado CHAR(2) NOT NULL
+);
+
 CREATE TABLE Empresa (
 	idEmpresa INT PRIMARY KEY auto_increment,
-    nome VARCHAR(60) NOT NULL,
-    cnpj CHAR(14) UNIQUE NOT NULL
+    razaoSocial VARCHAR(60) NOT NULL,
+    tinNumber CHAR(14) UNIQUE NOT NULL,
+    fkEndereco INT NOT NULL,
+    CONSTRAINT fk_Endereco foreign key (fkEndereco) REFERENCES Endereco(idEndereco)
 );
+
 
 CREATE TABLE Usuario (
 	idUsuario INT PRIMARY KEY AUTO_INCREMENT,
     nome VARCHAR(60) NOT NULL,
     email VARCHAR(80) UNIQUE NOT NULL,
+    nif CHAR(16) NOT NULL,
     senha VARCHAR(255) NOT NULL,
     fkEmpresa INT NOT NULL,
     CONSTRAINT fk_Empresa foreign key (fkEmpresa) REFERENCES Empresa(idEmpresa)
@@ -29,6 +41,7 @@ CREATE TABLE Servidor (
     fkEmpresa INT NOT NULL,
     CONSTRAINT fk_company_server foreign key (fkEmpresa) REFERENCES Empresa(idEmpresa)
 );
+
 
 CREATE TABLE GPU (
 	uuid VARCHAR(255) PRIMARY KEY,
@@ -59,12 +72,14 @@ CREATE TABLE RegistroServidor (
     CONSTRAINT fk_Servidor_Servidor_monitoring FOREIGN KEY (fkServidor) REFERENCES Servidor(uuidPlacaMae)
 );
 
+INSERT INTO Endereco (cep, logradouro, numero, cidade, estado) VALUES 
+('12345-678', 'Main St', '100', 'New York', 'NY');
 
-INSERT INTO Empresa (nome, cnpj) VALUES 
-('Irender', '12345678901234');
+INSERT INTO Empresa (razaoSocial, tinNumber, fkEndereco) VALUES 
+('Irender', '12345678901234', 1);
 
-INSERT INTO Usuario (nome, email, senha, fkEmpresa) VALUES
-("Bryan Rocha", "bryan.grocha@sptech.school", "12345678", 1);
+INSERT INTO Usuario (nome, email, nif, senha, fkEmpresa) VALUES
+("Bryan Rocha", "bryan.grocha@sptech.school", "1234567890123456", "12345678", 1);
 
 
 
