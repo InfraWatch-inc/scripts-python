@@ -7,6 +7,4 @@ connection = mysql.connector.connect(
     database="infrawatch"
 )
 
-
-
 cursor = connection.cursor()

@@ -55,8 +55,7 @@ def monitoring(
         system_info: HardwareData.SystemData,
         cpu_info: HardwareData.CPUData,
         ram_info: HardwareData.RAMData,
-        gpu_info: HardwareData.GPUData
-):
+        gpu_info: HardwareData.GPUData):
     print("\n⏳ \033[1;34mCapturando informações de hardware... \033[0m\n"
           "🛑 Pressione \033[1;31mCTRL + C\033[0m para encerrar a captura.")
 
@@ -93,5 +92,5 @@ def monitoring(
             print("")
             exit()
 
-
-init()
+if __name__ == "__main__":
+    init()

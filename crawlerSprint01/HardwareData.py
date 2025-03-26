@@ -4,7 +4,6 @@ import platform
 import subprocess
 from typing import List
 
-
 class SystemData:
     motherboardUuid: str or None
 
@@ -32,8 +31,6 @@ class SystemData:
 
     def __str__(self):
         return f"{self.SO} {self.architecture} {self.version}"
-
-
 
 class CPUData:
     cores: int
@@ -77,7 +74,6 @@ class RAMData:
         self.used = None
         self.total = None
         self.update()
-    
     
     def update(self):
         self.total = (psutil.virtual_memory().total / (1024 ** 3)).__ceil__()
