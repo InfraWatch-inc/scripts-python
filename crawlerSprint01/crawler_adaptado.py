@@ -6,20 +6,21 @@ import platform
 import subprocess
 import mysql.connector
 
-connection = mysql.connector.connect(
+conexao = mysql.connector.connect(
     host="",
     user="insert-user",
     password="Urubu100#",
     database="infrawatch"
 )
-cursor = connection.cursor()
+cursor = conexao.cursor()
 
 mother_board_uuid = None
 
 windows_sh = ["powershell", "-Command", "Get-WmiObject Win32_BaseBoard ", "| Select-Object -ExpandProperty SerialNumber"]
 linux_sh = "sudo dmidecode -s system-uuid"
 
-def collect_data():
+monitoramento = []
+def inicializador():
     try:
         system_info = {
             'SO': platform.system(),
@@ -35,26 +36,46 @@ def collect_data():
     except subprocess.SubprocessError as e:
         print(e)
 
-    try:
-        cpu_info = {
-            'cores': psutil.cpu_count(logical=False),
-            'threads': psutil.cpu_count(logical=True),
-            'times': psutil.cpu_times(),
-            'freq': psutil.cpu_freq().current,
-            'use': psutil.cpu_percent()
-        }
-    except Exception as e:
-        print(e)
+# Pegando o Informações de coleta
+ 
+if mother_board_uuid != None:
 
+    curso.execute("""SELECT servidor.idservidor, componente.componente, componente.numeracao, componente.fkServidor, 
+              configuracaoMonitoramento.fkComponete, configuracaoMonitoramento.funcaoPython, configuracaoMonitoramento.descricao FROM servidor JOIN componente 
+              ON servidor.idservidor = componente.fkServidor JOIN configuracaoMonitoramento ON
+              configuracaoMonitoramento.fkComponete = componente.idComponente 
+              WHERE servidor.idservidor = %s""", (mother_board_uuid,))   
+
+    resultado = cursor.fetchall()
+    coluna = resultado[(1)]
+    numeracao = resultado[(2)]
+    funcao = resultado[(5)]
+else:
+    print("🛑 O servidor não está registrado no banco de...")
+    exit("")
+
+monitoramento.append({
+            'coluna': coluna,
+            'funcao': funcao,
+            'numeracao': numeracao
+        })
+
+def coletar_dados():
+    
     try:
-        ram_info = {
-            'total':(psutil.virtual_memory().total / (1024 ** 3)).__ceil__(),
-            'used':(psutil.virtual_memory().used / (1024 ** 3)).__ceil__(),
-            'free':(psutil.virtual_memory().free / (1024 ** 3)).__ceil__(),
-            'totalSwap':(psutil.swap_memory().total / (1024 ** 3)).__ceil__(),
-            'UsedSwap':(psutil.swap_memory().used / (1024 ** 3)).__ceil__(),
-            'freeSwap':(psutil.swap_memory().free / (1024 ** 3)).__ceil__()
-        }
+        #newlist = [x for x in fruits if "a" in x]
+        #dados = [monitoramento[i].coluna, eval("monitoramento[i].funcao") for i in monitoramento]
+        dados = []
+        for item in monitoramento:
+            coluna = item['coluna']
+            funcao = item['funcao']
+            numeracao = item['numeracao']
+            dados.append({
+                'coluna': coluna,
+                'funcao': eval(funcao),  
+                'numeracao': numeracao
+            })
+
     except Exception as e:
         print(e)
 
@@ -63,29 +84,29 @@ def collect_data():
     except Exception as e:
         print(e)
 
-    return {system_info, ram_info, cpu_info, gpu_info}
+    return dados
 
-def monitoring():
+def monitoramento():
     while True:
         print("\n⏳ \033[1;34m Capturando informações de hardware... \033[0m\n"
           "🛑 Pressione \033[1;31m CTRL + C \033[0m para encerrar a captura.")
         
-        server_data = collect_data()
+        dados_servidor = coletar_dados()
 
         cursor.execute("INSERT INTO RegistroServidor (usoCPU, usoRAM, clock, fkServidor) VALUES (%s, %s, %s, %s)", (
-            server_data.cpu_info.use, server_data.ram_info.used, server_data.cpu_info.freq, server_data.system_info.motherboardUuid
+            dados_servidor.cpu_info.use, dados_servidor.ram_info.used, dados_servidor.cpu_info.freq, dados_servidor.system_info.motherboardUuid
         ))
-        connection.commit()
+        conexao.commit()
 
     
-        for gpu in server_data.gpu_info.gpus:
+        for gpu in dados_servidor.gpu_info.gpus:
             if gpu.load != gpu.load:
                 return
 
             cursor.execute("INSERT INTO RegistroGPU (usoGPU, usoVRAM, temperatura, fkGPU) VALUES (%s, %s, %s, %s)", (
                 round(gpu.load * 100, 2), gpu.memoryUsed, gpu.temperature, gpu.uuid
             ))
-        connection.commit()
+        conexao.commit()
 
         try:
             time.sleep(5)
@@ -96,16 +117,16 @@ def monitoring():
 def init():
     print("Iniciando verificação de Hardware... \n")
 
-    server_data = collect_data()
+    dados_servidor = coletar_dados()
 
     if not mother_board_uuid:
         print("🛑 Verificação de hardware falhou... Não foi possível identificar a placa mãe")
         return
     
-    sys = server_data.system_info
-    cpu = server_data.cpu_info
-    ram = server_data.ram_info
-    gpus = server_data.gpu_info
+    sys = dados_servidor.system_info
+    cpu = dados_servidor.cpu_info
+    ram = dados_servidor.ram_info
+    gpus = dados_servidor.gpu_info
 
     print(f"⚙️ Sistema operacional: {f"{sys.SO} {sys.architecture} {sys.version}"}")
     print(f"🔑 UUID da placa mãe: {mother_board_uuid}")
@@ -130,7 +151,7 @@ def init():
 
         if opt == "1":
             try:
-                monitoring()
+                monitoramento()
             except Exception as error:
                 if error.args[0] == 1452:
                     print("\033[1;31m Encerrando captura: \033[0m Este servidor não está cadastrado em nosso sistema.")
@@ -142,6 +163,8 @@ def init():
             exit(f"Até a próxima!")
         else:
             print("Opção inválida!")
+
+   
 
 if __name__ == "__main__":
     init()
