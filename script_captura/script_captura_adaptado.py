@@ -9,9 +9,9 @@ from unidecode import unidecode
 from datetime import datetime, timedelta, timezone
 
 conexao = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="Ranier2006!",
+    host="",
+    user="user-captura",
+    password="Urubu100#",
     database="infrawatch"
 )
 cursor = conexao.cursor()
@@ -126,7 +126,7 @@ def captura():
         conexao.commit()
 
         try:
-            time.sleep(5)
+            time.sleep(600)
             os.system('cls' if os.name == 'nt' else 'clear')
         except:
             exit("")
