@@ -125,10 +125,8 @@ def captura():
         cursor.execute(query_dataframe)
         conexao.commit()
 
-        
-
         try:
-            time.sleep(600)
+            time.sleep(5)
             os.system('cls' if os.name == 'nt' else 'clear')
         except:
             exit("")
