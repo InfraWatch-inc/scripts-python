@@ -98,30 +98,33 @@ def coletar_dados():
     return dados
 
 def coletar_dados_processos():
-    # TODO
-    # coletar processos que mais usam GPU pelo pid e uso da GPU
     processos_total = []
-    infos_placas = filter(lambda placa: placa['componente'] == 'GPU', monitoramento)
-    processos_placas = []
+    gpus_monitoradas = list(filter(lambda item: item['componente'] == 'GPU', monitoramento))
 
-    infos_placas.sort(key=lambda x: x['numeracao'])
+    for gpu in gpus_monitoradas:
+        indice_gpu = int(gpu['numeracao']) - 1  # numeracao começa em 1
 
-    for placa in infos_placas:
-        processos_placa = pynvml.nvmlDeviceGetComputeRunningProcesses(placa['numeracao'] -1)
-        
-    processos_placas.append(processos_placa[:4])
-    processos_placas.sort(key=lambda x: x['usedGpuMemory'], reverse=True)
+        handle = pynvml.nvmlDeviceGetHandleByIndex(indice_gpu)
+        processos_gpu = pynvml.nvmlDeviceGetComputeRunningProcesses(handle)
 
-    processos_raw = psutil.process_iter(['pid', 'name', 'memory_info'])
+        for processo_gpu in processos_gpu:
+            pid = processo_gpu.pid
+            uso_gpu_em_mb = processo_gpu.usedGpuMemory / 1024 ** 2  # bytes → MB
 
-    # achar os processos que mais consomem GPU
-    for processo in processos_placas:
-        if processos_raw.info['pid'] == processo.pid:
-            pass
-    
-    # juntar o total de uso de memoria e cpu por nome que pid que descobrir
-    
-    return processos_total
+            proc = psutil.Process(pid)
+            nome = proc.name()
+            uso_cpu = proc.cpu_percent(interval=None)
+            uso_ram = proc.memory_info().rss / 1024 ** 2  # bytes → MB
+
+            processos_total.append(tuple(
+                nome,
+                round(uso_cpu, 2),
+                round(uso_gpu_em_mb, 2),
+                round(uso_ram, 2)
+            ))
+
+    processos_total.sort(key=lambda x: x[2], reverse=True)
+    return processos_total[:5]
 
 def captura():
     while True:
