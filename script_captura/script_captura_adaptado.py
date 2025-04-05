@@ -2,11 +2,14 @@ import os
 import time
 import psutil
 import GPUtil
+import pynvml
 import platform
 import subprocess
 import mysql.connector
 from unidecode import unidecode 
 from datetime import datetime, timedelta, timezone
+
+pynvml.nvmlInit()
 
 conexao = mysql.connector.connect(
     host="",
@@ -33,10 +36,10 @@ def inicializador():
     except subprocess.SubprocessError as e:
         print(e)
 
-# Pegando o Informações de coleta
+    # Pegando o Informações de coleta
  
     if mother_board_uuid != None:
-        cursor.execute("""SELECT Componente.componente, Componente.numeracao, ConfiguracaoMonitoramento.descricao,ConfiguracaoMonitoramento.funcaoPython,ConfiguracaoMonitoramento.idConfiguracaoMonitoramento, Servidor.idServidor FROM Servidor JOIN Componente 
+        cursor.execute("""SELECT Componente.componente, Componente.numeracao, ConfiguracaoMonitoramento.descricao ConfiguracaoMonitoramento.funcaoPython,ConfiguracaoMonitoramento.idConfiguracaoMonitoramento, Servidor.idServidor, ConfiguracaoMonitoramento.limiteAtencao, ConfiguracaoMonitoramento.limiteCritico FROM Servidor JOIN Componente 
               ON Servidor.idServidor = Componente.fkServidor JOIN ConfiguracaoMonitoramento ON
               ConfiguracaoMonitoramento.fkComponente = Componente.idComponente 
               WHERE Servidor.uuidPlacaMae = %s""", (mother_board_uuid,))   
@@ -64,12 +67,17 @@ def inicializador():
             coluna = f'{linha[0].lower()}{numeracao}_{descricao}'
             funcao = linha[3]
             fkConfig = linha[4]
+            limite_atencao = linha[6]
+            limite_critico = linha[7]
 
             monitoramento.append({
+                'componente': linha[0],
                 'coluna': coluna,
                 'funcao': funcao,
                 'numeracao': numeracao,
-                'fkConfiguracaoMonitoramento':fkConfig
+                'fkConfiguracaoMonitoramento':fkConfig,
+                'limiteAtencao': limite_atencao,
+                'limiteCritico': limite_critico
             })
         init()
     else:
@@ -89,41 +97,68 @@ def coletar_dados():
 
     return dados
 
+def coletar_dados_processos():
+    # TODO
+    # coletar processos que mais usam GPU pelo pid e uso da GPU
+    processos_total = []
+    infos_placas = filter(lambda placa: placa['componente'] == 'GPU', monitoramento)
+    processos_placas = []
+
+    infos_placas.sort(key=lambda x: x['numeracao'])
+
+    for placa in infos_placas:
+        processos_placa = pynvml.nvmlDeviceGetComputeRunningProcesses(placa['numeracao'] -1)
+        
+    processos_placas.append(processos_placa[:4])
+    processos_placas.sort(key=lambda x: x['usedGpuMemory'], reverse=True)
+
+    processos_raw = psutil.process_iter(['pid', 'name', 'memory_info'])
+
+    # achar os processos que mais consomem GPU
+    for processo in processos_placas:
+        if processos_raw.info['pid'] == processo.pid:
+            pass
+    
+    # juntar o total de uso de memoria e cpu por nome que pid que descobrir
+    
+    return processos_total
+
 def captura():
     while True:
-        print("\n⏳ \033[1;34m Capturando informações de hardware... \033[0m\n"
+        print("\n⏳ \033[1;34m Capturando informações de hardware e processos... \033[0m\n"
           "🛑 Pressione \033[1;31m CTRL + C \033[0m para encerrar a captura.")
         
         dados_servidor = coletar_dados()
+        dados_processos = coletar_dados_processos()
 
         fuso_brasil = timezone(timedelta(hours=-3))
         data_hora_brasil = datetime.now(fuso_brasil).strftime('%Y-%m-%d %H:%M:%S')
 
-        colunas = ''
-        dados_inserir = ''
-
         i = 0
         for item in monitoramento:
-            colunas += f'{item['coluna']}'
-            dados_inserir += f'{dados_servidor[i]}'
+            query_relacional_captura = f'INSERT INTO Captura (dadoCaptura, dataHora, fkConfiguracaoMonitoramento) VALUES ({dados_servidor[i]}, "{data_hora_brasil}", {item['fkConfiguracaoMonitoramento']});'
 
-            query_relacional = f'INSERT INTO Captura (dadoCaptura, dataHora, fkConfiguracaoMonitoramento) VALUES ({dados_servidor[i]}, "{data_hora_brasil}", {item['fkConfiguracaoMonitoramento']});'
-
-            cursor.execute(query_relacional)
+            cursor.execute(query_relacional_captura)
             conexao.commit()
 
-            # TODO adicionar insert na tabela alerta caso necessário 
-            # TODO e usar campo isAlerta da tabela captura_servidor_n
+            if dados_servidor[i] >= item['limiteCritico']:
+                query_relacional_alerta = f'INSERT INTO Alerta (dataHora, fkConfiguracaoMonitoramento, tipoAlerta) VALUES ({data_hora_brasil}, {item['fkConfiguracaoMonitoramento']}, 2);'
 
-            colunas += ','
-            dados_inserir += ','
+                cursor.execute(query_relacional_alerta)
+                conexao.commit()
+            elif dados_servidor[i] >= item['limiteAtencao']:
+                query_relacional_alerta = f'INSERT INTO Alerta (dataHora, fkConfiguracaoMonitoramento, tipoAlerta) VALUES ({data_hora_brasil}, {item['fkConfiguracaoMonitoramento']}, 1);'
+
+                cursor.execute(query_relacional_alerta)
+                conexao.commit()
             
             i+=1
-        
-        query_dataframe = f"INSERT INTO captura_servidor_{id_servidor} ({colunas} dtHora) VALUES ({dados_inserir} '{data_hora_brasil}');"
-  
-        cursor.execute(query_dataframe)
-        conexao.commit()
+
+        for processo in dados_processos:
+            query_relacional_processo = f'INSERT INTO Processo (nome, usoCpu, usoGpu, usoRam, dataHora, fkServidor) VALUES ({processo[0]}, {processo[1]}, {processo[2]}, {processo[3]}, {data_hora_brasil}, {id_servidor});'
+
+            cursor.execute(query_relacional_processo)
+            conexao.commit()
 
         try:
             time.sleep(600)
