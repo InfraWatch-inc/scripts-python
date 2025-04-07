@@ -111,10 +111,7 @@ def inicializador() -> None:
     coletar_uuid()
  
     if globais['UUID'] != None:
-        globais['cursor'].execute("""SELECT Componente.componente, Componente.numeracao, ConfiguracaoMonitoramento.descricao, ConfiguracaoMonitoramento.funcaoPython, ConfiguracaoMonitoramento.idConfiguracaoMonitoramento, Servidor.idServidor, ConfiguracaoMonitoramento.limiteAtencao, ConfiguracaoMonitoramento.limiteCritico FROM Servidor JOIN Componente 
-              ON Servidor.idServidor = Componente.fkServidor JOIN ConfiguracaoMonitoramento ON
-              ConfiguracaoMonitoramento.fkComponente = Componente.idComponente 
-              WHERE Servidor.uuidPlacaMae = %s""", (globais['UUID'],))   
+        globais['cursor'].execute("""SELECT * FROM viewGetServidor WHERE Servidor.uuidPlacaMae = %s""", (globais['UUID'],))   
 
         resultado = globais['cursor'].fetchall()
 
