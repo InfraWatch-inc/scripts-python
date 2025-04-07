@@ -6,7 +6,6 @@ import pynvml
 import platform
 import subprocess
 import mysql.connector
-from unidecode import unidecode 
 from datetime import datetime, timedelta, timezone
 
 globais = {
@@ -52,16 +51,6 @@ def atualizar_itens_monitorar(query) -> None:
     '''
     for linha in query:
             numeracao = linha[1]
-            itens_descricao = unidecode(linha[2])
-            itens_descricao = itens_descricao.lower().split(' ')
-            descricao = ''
-
-            for item in itens_descricao:
-                descricao += f'{item}'
-                if item != itens_descricao[-1]:
-                    descricao += '_'
-                    
-            coluna = f'{linha[0].lower()}{numeracao}_{descricao}'
             funcao = linha[3]
             fkConfig = linha[4]
             limite_atencao = linha[6]
@@ -69,7 +58,6 @@ def atualizar_itens_monitorar(query) -> None:
 
             monitoramento.append({
                 'componente': linha[0],
-                'coluna': coluna,
                 'funcao': funcao,
                 'numeracao': numeracao,
                 'fkConfiguracaoMonitoramento':fkConfig,
