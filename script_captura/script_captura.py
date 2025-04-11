@@ -33,9 +33,9 @@ def conectar_bd() -> None:
             - None
     '''
     globais['conexao'] = mysql.connector.connect(
-        host="",
-        user="user-captura",
-        password="Urubu100#",
+        host="localhost",
+        user="root",
+        password="Ranier2006!",
         database="infrawatch"
     )
 
@@ -100,7 +100,7 @@ def inicializador() -> None:
     coletar_uuid()
  
     if globais['UUID'] != None:
-        globais['cursor'].execute("""SELECT * FROM viewGetServidor WHERE Servidor.uuidPlacaMae = %s""", (globais['UUID'],))   
+        globais['cursor'].execute("""SELECT * FROM viewGetServidor WHERE uuidPlacaMae = %s""", (globais['UUID'],))   
 
         resultado = globais['cursor'].fetchall()
 
@@ -181,7 +181,18 @@ def coletar_dados_processos() -> list:
 
         for processo_gpu in processos_gpu:
             pid = processo_gpu.pid
-            uso_gpu_em_mb = processo_gpu.usedGpuMemory / 1024 ** 2
+
+            try:
+                used_memory = processo_gpu.usedGpuMemory
+                if used_memory is None:
+                    print(f"[!] PID {processo_gpu.pid} tem usedGpuMemory = None")
+                    uso_gpu_em_mb = 0.0
+                else:
+                    uso_gpu_em_mb = used_memory / 1024 ** 2
+            except AttributeError as e:
+                print(f"[!] Erro ao acessar usedGpuMemory no PID {processo_gpu.pid}: {e}")
+                uso_gpu_em_mb = 0.0
+
 
             try:
                 proc = psutil.Process(pid)
@@ -265,11 +276,11 @@ def captura() -> None:
                 is_alerta = True
 
             if is_alerta:
-                id_alerta = cadastrar_bd(f'INSERT INTO Alerta (dataHora, fkConfiguracaoMonitoramento, tipoAlerta, valor) VALUES (%s, %s, %s, %s);', (data_hora_brasil, config['fkConfiguracaoMonitoramento'], 1, valor))
+                id_alerta = cadastrar_bd(f'INSERT INTO Alerta (dataHora, fkConfiguracaoMonitoramento, nivel, valor) VALUES (%s, %s, %s, %s);', (data_hora_brasil, config['fkConfiguracaoMonitoramento'], 1, valor))
                 enviar_notificacao(nivel_alerta, id_alerta)
 
         for processo in dados_processos:
-            cadastrar_bd(f'INSERT INTO Processo (nome, usoCpu, usoGpu, usoRam, dataHora, fkServidor) VALUES (%s,%s,%s,%s,%s,%s);', (processo[0], processo[1], processo[2], processo[3], data_hora_brasil, globais['ID_SERVDIDOR']))
+            cadastrar_bd(f'INSERT INTO Processo (nomeProcesso, usoCpu, usoGpu, usoRam, dataHora, fkServidor) VALUES (%s,%s,%s,%s,%s,%s);', (processo[0], processo[1], processo[2], processo[3], data_hora_brasil, globais['ID_SERVDIDOR']))
 
         try:
             time.sleep(INTERVALO_CAPTURA)
