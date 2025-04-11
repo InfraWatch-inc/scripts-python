@@ -3,6 +3,7 @@ import time
 import psutil
 import GPUtil
 import pynvml
+import requests
 import platform
 import subprocess
 import mysql.connector
@@ -12,34 +13,16 @@ from datetime import datetime, timedelta, timezone
 globais = {
     'COMANDOS_WINDOWS': ["powershell", "-Command", "Get-WmiObject Win32_BaseBoard ", "| Select-Object -ExpandProperty SerialNumber"],
     'COMANDOS_LINUX': "sudo dmidecode -s system-uuid",
-    'conexao': None, 
-    'cursor': None, 
     'UUID': None, 
     'ID_SERVDIDOR': None
 }
 
 INTERVALO_CAPTURA = 60
 
-
 monitoramento = []
 
-def conectar_bd() -> None:
-    '''
-        Inicia ou atualiza a conexão com o banco e o cursor.
+# TODO implementar lógica de juntar dados a cada 24 hrs e enviar um arquivo csv gerado na rota captura/arquivo
 
-        params:
-            - None
-        return:
-            - None
-    '''
-    globais['conexao'] = mysql.connector.connect(
-        host="",
-        user="user-captura",
-        password="Urubu100#",
-        database="infrawatch"
-    )
-
-    globais['cursor'] = globais['conexao'].cursor()
 
 def atualizar_itens_monitorar(query) -> None:
     '''
@@ -51,20 +34,20 @@ def atualizar_itens_monitorar(query) -> None:
             - None
     '''
     for linha in query:
-            numeracao = linha[1]
-            funcao = linha[3]
-            fkConfig = linha[4]
-            limite_atencao = linha[6]
-            limite_critico = linha[7]
+        numeracao = linha[1]
+        funcao = linha[3]
+        fkConfig = linha[4]
+        limite_atencao = linha[6]
+        limite_critico = linha[7]
 
-            monitoramento.append({
-                'componente': linha[0],
-                'funcao': funcao,
-                'numeracao': numeracao,
-                'fkConfiguracaoMonitoramento':fkConfig,
-                'limiteAtencao': limite_atencao,
-                'limiteCritico': limite_critico
-            })
+        monitoramento.append({
+            'componente': linha[0],
+            'funcao': funcao,
+            'numeracao': numeracao,
+            'fkConfiguracaoMonitoramento':fkConfig,
+            'limiteAtencao': limite_atencao,
+            'limiteCritico': limite_critico
+        });
 
 def coletar_uuid() -> None:
     '''
@@ -100,9 +83,8 @@ def inicializador() -> None:
     coletar_uuid()
  
     if globais['UUID'] != None:
-        globais['cursor'].execute("""SELECT * FROM viewGetServidor WHERE Servidor.uuidPlacaMae = %s""", (globais['UUID'],))   
-
-        resultado = globais['cursor'].fetchall()
+        # TODO
+        resultado = requests()
 
         if len(resultado) == 0:
             print("🛑 O servidor não tem configuração de monitoramento cadastrado no Banco de Dados...")
@@ -146,19 +128,6 @@ def coletar_dados() -> list:
 
     return dados
 
-def enviar_notificacao(nivel_alerta, id_alerta) -> None:
-    '''
-        Abrir chamado no Jira da empresa e complementar com mensagem no Slack, informando o chamado e detalhes do alerta.
-
-        params:
-            - nivel_alerta (int): qual o nivel do alerta (1 - atenção, 2 - crítico)
-            - id_alerta (int): id do alerta gravado no banco de dados
-        return:
-            - None
-    '''
-    # todo - implementar lógica de envio da notificacao 
-    print("Abrir chamado e enviando mensagem no Slack...")
-    pass
 
 def coletar_dados_processos() -> list:
     '''
@@ -252,6 +221,7 @@ def captura() -> None:
         data_hora_brasil = datetime.now(fuso_brasil).strftime('%Y-%m-%d %H:%M:%S')
 
         for config, valor in zip(monitoramento, dados_servidor):
+            # TODO IMPLEMENTAR REQUESTS NA ROTA captura/cadastrar
             cadastrar_bd(f'INSERT INTO Captura (dadoCaptura, dataHora, fkConfiguracaoMonitoramento) VALUES (%s, %s, %s);', (valor, data_hora_brasil, config['fkConfiguracaoMonitoramento']))
             is_alerta = False
             nivel_alerta = 1
@@ -265,10 +235,11 @@ def captura() -> None:
                 is_alerta = True
 
             if is_alerta:
+                # TODO IMPLEMENTAR REQUESTS NA ROTA alerta/cadastrar, para depois enviar automaticamente o alerta com slack e jira
                 id_alerta = cadastrar_bd(f'INSERT INTO Alerta (dataHora, fkConfiguracaoMonitoramento, tipoAlerta, valor) VALUES (%s, %s, %s, %s);', (data_hora_brasil, config['fkConfiguracaoMonitoramento'], 1, valor))
-                enviar_notificacao(nivel_alerta, id_alerta)
 
         for processo in dados_processos:
+            # TODO IMPLEMENTAR REQUESTS NA ROTA alerta/cadastrar
             cadastrar_bd(f'INSERT INTO Processo (nome, usoCpu, usoGpu, usoRam, dataHora, fkServidor) VALUES (%s,%s,%s,%s,%s,%s);', (processo[0], processo[1], processo[2], processo[3], data_hora_brasil, globais['ID_SERVDIDOR']))
 
         try:
@@ -314,5 +285,4 @@ def init() -> None:
             print("Opção inválida!")
 
 if __name__ == "__main__":
-    conectar_bd()
     inicializador()
