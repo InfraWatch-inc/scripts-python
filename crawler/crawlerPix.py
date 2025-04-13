@@ -2,7 +2,6 @@ import json
 import requests
 import tempfile
 import os
-import json
 import boto3
 
  

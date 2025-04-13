@@ -6,7 +6,6 @@ import pynvml
 import platform
 import subprocess
 import mysql.connector
-from unidecode import unidecode 
 from datetime import datetime, timedelta, timezone
 
 globais = {
@@ -169,7 +168,6 @@ def coletar_dados_processos() -> list:
         return:
             - list: lista com os dados dos top 5 processos em execução na GPU
     '''
-
     processos_total = {}
     gpus_monitoradas = list(filter(lambda item: item['componente'] == 'GPU', monitoramento))
 
@@ -185,36 +183,44 @@ def coletar_dados_processos() -> list:
             try:
                 used_memory = processo_gpu.usedGpuMemory
                 if used_memory is None:
-                    print(f"[!] PID {processo_gpu.pid} tem usedGpuMemory = None")
                     uso_gpu_em_mb = 0.0
                 else:
                     uso_gpu_em_mb = used_memory / 1024 ** 2
-            except AttributeError as e:
-                print(f"[!] Erro ao acessar usedGpuMemory no PID {processo_gpu.pid}: {e}")
+            except AttributeError:
                 uso_gpu_em_mb = 0.0
 
-
             try:
+                # Obter informações do processo
                 proc = psutil.Process(pid)
                 nome = proc.name()
                 uso_cpu = proc.cpu_percent(interval=None)
                 uso_ram = proc.memory_info().rss / 1024 ** 2
 
                 if nome not in processos_total:
+                    # se não existir adiciona valores vazios
                     processos_total[nome] = [0.0, 0.0, 0.0]
-
+                
+                # somar valores do processo que tiverem este nome
                 processos_total[nome][0] += uso_cpu
                 processos_total[nome][1] += uso_gpu_em_mb
                 processos_total[nome][2] += uso_ram
 
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
-            
+    
+    # transformar o dict em lista de tuplas
     processos_agrupados = [
         (nome, round(uso[0], 2), round(uso[1], 2), round(uso[2], 2))
         for nome, uso in processos_total.items()
     ]
     processos_agrupados.sort(key=lambda x: x[2], reverse=True)
+
+    # validar existencia de gpu para ver qual ondernacao vai usar
+    tem_gpu = any(p[2] > 0 for p in processos_agrupados)
+    if tem_gpu:
+        processos_agrupados.sort(key=lambda x: x[2], reverse=True)
+    else:
+        processos_agrupados.sort(key=lambda x: x[0], reverse=True)
 
     return processos_agrupados[:5]
 
