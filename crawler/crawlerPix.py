@@ -47,7 +47,7 @@ def lambda_handler(event, context):
 
             Filename=nome_arquivo,
 
-            Bucket='my-python-bucket-01',
+            Bucket='s3-infrawatch-bronze',
 
             Key='pix/dados.json'
 
