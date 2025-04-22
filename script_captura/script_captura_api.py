@@ -6,9 +6,14 @@ import pynvml
 import requests
 import platform
 import subprocess
-import mysql.connector
-from unidecode import unidecode 
 from datetime import datetime, timedelta, timezone
+
+# Usar requests para fazer as requisicoes substituindo o banco de dados - para fazer o model, se basear nas query deste script mesmo
+# serão 4 rotas:
+# 1 get (pegar informações do servidor usando viewGetServidor e passando o uuid como parametro)
+# 2 post (cadastrar os dados de captura no banco de dados usando a rota de captura)
+# 3 post (cadastrar os dados de alertas no banco de dados usando a rota de alertas)
+# 4 post (cadastrar os dados de processos no banco de dados usando a rota de processos)
 
 globais = {
     'COMANDOS_WINDOWS': ["powershell", "-Command", "Get-WmiObject Win32_BaseBoard ", "| Select-Object -ExpandProperty SerialNumber"],
@@ -21,9 +26,6 @@ INTERVALO_CAPTURA = 60
 
 monitoramento = []
 
-# TODO implementar lógica de juntar dados a cada 24 hrs e enviar um arquivo csv gerado na rota captura/arquivo
-
-
 def atualizar_itens_monitorar(query) -> None:
     '''
         Recebe o resultado da query de select para verificar os itens a ser monitorados de acordo com o que está cadastrado no banco.
@@ -34,20 +36,20 @@ def atualizar_itens_monitorar(query) -> None:
             - None
     '''
     for linha in query:
-        numeracao = linha[1]
-        funcao = linha[3]
-        fkConfig = linha[4]
-        limite_atencao = linha[6]
-        limite_critico = linha[7]
+            numeracao = linha[1]
+            funcao = linha[3]
+            fkConfig = linha[4]
+            limite_atencao = linha[6]
+            limite_critico = linha[7]
 
-        monitoramento.append({
-            'componente': linha[0],
-            'funcao': funcao,
-            'numeracao': numeracao,
-            'fkConfiguracaoMonitoramento':fkConfig,
-            'limiteAtencao': limite_atencao,
-            'limiteCritico': limite_critico
-        });
+            monitoramento.append({
+                'componente': linha[0],
+                'funcao': funcao,
+                'numeracao': numeracao,
+                'fkConfiguracaoMonitoramento':fkConfig,
+                'limiteAtencao': limite_atencao,
+                'limiteCritico': limite_critico
+            })
 
 def coletar_uuid() -> None:
     '''
@@ -83,8 +85,9 @@ def inicializador() -> None:
     coletar_uuid()
  
     if globais['UUID'] != None:
-        # TODO
-        resultado = requests()
+        globais['cursor'].execute("""SELECT * FROM viewGetServidor WHERE uuidPlacaMae = %s""", (globais['UUID'],))   
+
+        resultado = globais['cursor'].fetchall()
 
         if len(resultado) == 0:
             print("🛑 O servidor não tem configuração de monitoramento cadastrado no Banco de Dados...")
@@ -128,53 +131,89 @@ def coletar_dados() -> list:
 
     return dados
 
-
-def coletar_dados_processos() -> list:
+def enviar_notificacao(nivel_alerta, id_alerta) -> None:
     '''
-        Coleta dos processos das GPU's monitradas, sendo eles o uso da gpu, cpu e ram e retorna esta informação em forma de array/list.
+        Abrir chamado no Jira da empresa e complementar com mensagem no Slack, informando o chamado e detalhes do alerta.
+
+        params:
+            - nivel_alerta (int): qual o nivel do alerta (1 - atenção, 2 - crítico)
+            - id_alerta (int): id do alerta gravado no banco de dados
+        return:
+            - None
+    '''
+    # todo - implementar lógica de envio da notificacao 
+    print("Abrir chamado e enviando mensagem no Slack...")
+    pass
+
+def coletar_dados_processos() -> dict:
+    '''
+        Coleta dos processos do servidor monitorado, sendo eles ranqueados em uso da gpu, cpu e ram e retorna esta informação em forma de dict.
 
         params:
             - None
         return:
-            - list: lista com os dados dos top 5 processos em execução na GPU
+            - dict: onjeto com os dados dos top 5 processos em execução no servidor
     '''
+    processos_agregados = {}
 
-    processos_total = {}
+    # gpus que estão sendo monitoradas
     gpus_monitoradas = list(filter(lambda item: item['componente'] == 'GPU', monitoramento))
+    if gpus_monitoradas:
+        for gpu in gpus_monitoradas: # para cada gpu
+            indice_gpu = int(gpu['numeracao']) - 1 # coletar index da gpu
 
-    for gpu in gpus_monitoradas:
-        indice_gpu = int(gpu['numeracao']) - 1
+            try: 
+                handle = pynvml.nvmlDeviceGetHandleByIndex(indice_gpu) # seleciona gpu que vou ver os processos 
+                processos_gpu = pynvml.nvmlDeviceGetComputeRunningProcesses(handle) # coleta os processos da gpu
 
-        handle = pynvml.nvmlDeviceGetHandleByIndex(indice_gpu)
-        processos_gpu = pynvml.nvmlDeviceGetComputeRunningProcesses(handle)
+                for processo in processos_gpu:
+                    try:
+                        proc = psutil.Process(processo.pid) # identifica o processo 
+                        nome = proc.name()
 
-        for processo_gpu in processos_gpu:
-            pid = processo_gpu.pid
-            uso_gpu_em_mb = processo_gpu.usedGpuMemory / 1024 ** 2
+                        if nome not in processos_agregados: # se o processo não estiver na lista, adiciona zerado
+                            processos_agregados[nome] = {"uso_cpu": 0.0, "uso_ram": 0.0, "uso_gpu": 0.0}
 
-            try:
-                proc = psutil.Process(pid)
-                nome = proc.name()
-                uso_cpu = proc.cpu_percent(interval=None)
-                uso_ram = proc.memory_info().rss / 1024 ** 2
-
-                if nome not in processos_total:
-                    processos_total[nome] = [0.0, 0.0, 0.0]
-
-                processos_total[nome][0] += uso_cpu
-                processos_total[nome][1] += uso_gpu_em_mb
-                processos_total[nome][2] += uso_ram
-
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        # soma os dados do processo
+                        gpu_mem = processo.usedGpuMemory or 0
+                        processos_agregados[nome]["uso_gpu"] += round(gpu_mem / 1024**2,2)  # MB
+                        processos_agregados[nome]["uso_cpu"] += round(proc.cpu_percent(interval=0.1),2)
+                        processos_agregados[nome]["uso_ram"] += round(proc.memory_percent(),2)
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        continue
+            except pynvml.NVMLError:
                 continue
-            
-    processos_agrupados = [
-        (nome, round(uso[0], 2), round(uso[1], 2), round(uso[2], 2))
-        for nome, uso in processos_total.items()
-    ]
-    processos_agrupados.sort(key=lambda x: x[2], reverse=True)
 
-    return processos_agrupados[:5]
+    # Coleta processos que não dependem de GPU necessariamente
+    for proc in psutil.process_iter(['name', 'cpu_percent', 'memory_percent']):
+        try:
+            nome = proc.info['name']
+
+            if nome not in processos_agregados: # mesma logica de verificar se o processo existe 
+                processos_agregados[nome] = {"uso_cpu": 0.0, "uso_ram": 0.0, "uso_gpu": 0.0}
+
+            # adiciona os valores dos processos
+            processos_agregados[nome]["uso_cpu"] += round(proc.info['cpu_percent'],2)
+            processos_agregados[nome]["uso_ram"] += round(proc.info['memory_percent'],2)
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+
+    # Converte para lista de obj
+    processos_lista = [{
+        "nome": nome,
+        "uso_gpu": dados["uso_gpu"],
+        "uso_cpu": dados["uso_cpu"],
+        "uso_ram": dados["uso_ram"]
+    } for nome, dados in processos_agregados.items()]
+
+    # ordena os processos com hirarquia de uso gpu, cpu e ram
+    processos_ordenados = sorted(
+        processos_lista,
+        key=lambda p: (p['uso_gpu'], p['uso_cpu'], p['uso_ram']),
+        reverse=True
+    )
+    # retorna os top5
+    return processos_ordenados[:5]
 
 def cadastrar_bd(query, params) -> int:
     '''
@@ -221,7 +260,6 @@ def captura() -> None:
         data_hora_brasil = datetime.now(fuso_brasil).strftime('%Y-%m-%d %H:%M:%S')
 
         for config, valor in zip(monitoramento, dados_servidor):
-            # TODO IMPLEMENTAR REQUESTS NA ROTA captura/cadastrar
             cadastrar_bd(f'INSERT INTO Captura (dadoCaptura, dataHora, fkConfiguracaoMonitoramento) VALUES (%s, %s, %s);', (valor, data_hora_brasil, config['fkConfiguracaoMonitoramento']))
             is_alerta = False
             nivel_alerta = 1
@@ -235,12 +273,11 @@ def captura() -> None:
                 is_alerta = True
 
             if is_alerta:
-                # TODO IMPLEMENTAR REQUESTS NA ROTA alerta/cadastrar, para depois enviar automaticamente o alerta com slack e jira
-                id_alerta = cadastrar_bd(f'INSERT INTO Alerta (dataHora, fkConfiguracaoMonitoramento, tipoAlerta, valor) VALUES (%s, %s, %s, %s);', (data_hora_brasil, config['fkConfiguracaoMonitoramento'], 1, valor))
-
+                id_alerta = cadastrar_bd(f'INSERT INTO Alerta (dataHora, fkConfiguracaoMonitoramento, nivel, valor) VALUES (%s, %s, %s, %s);', (data_hora_brasil, config['fkConfiguracaoMonitoramento'], 1, valor))
+                enviar_notificacao(nivel_alerta, id_alerta)
+        print(dados_processos)
         for processo in dados_processos:
-            # TODO IMPLEMENTAR REQUESTS NA ROTA alerta/cadastrar
-            cadastrar_bd(f'INSERT INTO Processo (nome, usoCpu, usoGpu, usoRam, dataHora, fkServidor) VALUES (%s,%s,%s,%s,%s,%s);', (processo[0], processo[1], processo[2], processo[3], data_hora_brasil, globais['ID_SERVDIDOR']))
+            cadastrar_bd(f'INSERT INTO Processo (nomeProcesso, usoCpu, usoGpu, usoRam, dataHora, fkServidor) VALUES (%s,%s,%s,%s,%s,%s);', (processo['nome'], processo['uso_cpu'], processo['uso_gpu'], processo['uso_ram'], data_hora_brasil, globais['ID_SERVDIDOR']))
 
         try:
             time.sleep(INTERVALO_CAPTURA)

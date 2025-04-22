@@ -159,70 +159,75 @@ def enviar_notificacao(nivel_alerta, id_alerta) -> None:
     print("Abrir chamado e enviando mensagem no Slack...")
     pass
 
-def coletar_dados_processos() -> list:
+def coletar_dados_processos() -> dict:
     '''
-        Coleta dos processos das GPU's monitradas, sendo eles o uso da gpu, cpu e ram e retorna esta informação em forma de array/list.
+        Coleta dos processos do servidor monitorado, sendo eles ranqueados em uso da gpu, cpu e ram e retorna esta informação em forma de dict.
 
         params:
             - None
         return:
-            - list: lista com os dados dos top 5 processos em execução na GPU
+            - dict: onjeto com os dados dos top 5 processos em execução no servidor
     '''
-    processos_total = {}
+    processos_agregados = {}
+
+    # gpus que estão sendo monitoradas
     gpus_monitoradas = list(filter(lambda item: item['componente'] == 'GPU', monitoramento))
+    if gpus_monitoradas:
+        for gpu in gpus_monitoradas: # para cada gpu
+            indice_gpu = int(gpu['numeracao']) - 1 # coletar index da gpu
 
-    for gpu in gpus_monitoradas:
-        indice_gpu = int(gpu['numeracao']) - 1
+            try: 
+                handle = pynvml.nvmlDeviceGetHandleByIndex(indice_gpu) # seleciona gpu que vou ver os processos 
+                processos_gpu = pynvml.nvmlDeviceGetComputeRunningProcesses(handle) # coleta os processos da gpu
 
-        handle = pynvml.nvmlDeviceGetHandleByIndex(indice_gpu)
-        processos_gpu = pynvml.nvmlDeviceGetComputeRunningProcesses(handle)
+                for processo in processos_gpu:
+                    try:
+                        proc = psutil.Process(processo.pid) # identifica o processo 
+                        nome = proc.name()
 
-        for processo_gpu in processos_gpu:
-            pid = processo_gpu.pid
+                        if nome not in processos_agregados: # se o processo não estiver na lista, adiciona zerado
+                            processos_agregados[nome] = {"uso_cpu": 0.0, "uso_ram": 0.0, "uso_gpu": 0.0}
 
-            try:
-                used_memory = processo_gpu.usedGpuMemory
-                if used_memory is None:
-                    uso_gpu_em_mb = 0.0
-                else:
-                    uso_gpu_em_mb = used_memory / 1024 ** 2
-            except AttributeError:
-                uso_gpu_em_mb = 0.0
-
-            try:
-                # Obter informações do processo
-                proc = psutil.Process(pid)
-                nome = proc.name()
-                uso_cpu = proc.cpu_percent(interval=None)
-                uso_ram = proc.memory_info().rss / 1024 ** 2
-
-                if nome not in processos_total:
-                    # se não existir adiciona valores vazios
-                    processos_total[nome] = [0.0, 0.0, 0.0]
-                
-                # somar valores do processo que tiverem este nome
-                processos_total[nome][0] += uso_cpu
-                processos_total[nome][1] += uso_gpu_em_mb
-                processos_total[nome][2] += uso_ram
-
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        # soma os dados do processo
+                        gpu_mem = processo.usedGpuMemory or 0
+                        processos_agregados[nome]["uso_gpu"] += round(gpu_mem / 1024**2,2)  # MB
+                        processos_agregados[nome]["uso_cpu"] += round(proc.cpu_percent(interval=0.1),2)
+                        processos_agregados[nome]["uso_ram"] += round(proc.memory_percent(),2)
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        continue
+            except pynvml.NVMLError:
                 continue
-    
-    # transformar o dict em lista de tuplas
-    processos_agrupados = [
-        (nome, round(uso[0], 2), round(uso[1], 2), round(uso[2], 2))
-        for nome, uso in processos_total.items()
-    ]
-    processos_agrupados.sort(key=lambda x: x[2], reverse=True)
 
-    # validar existencia de gpu para ver qual ondernacao vai usar
-    tem_gpu = any(p[2] > 0 for p in processos_agrupados)
-    if tem_gpu:
-        processos_agrupados.sort(key=lambda x: x[2], reverse=True)
-    else:
-        processos_agrupados.sort(key=lambda x: x[0], reverse=True)
+    # Coleta processos que não dependem de GPU necessariamente
+    for proc in psutil.process_iter(['name', 'cpu_percent', 'memory_percent']):
+        try:
+            nome = proc.info['name']
 
-    return processos_agrupados[:5]
+            if nome not in processos_agregados: # mesma logica de verificar se o processo existe 
+                processos_agregados[nome] = {"uso_cpu": 0.0, "uso_ram": 0.0, "uso_gpu": 0.0}
+
+            # adiciona os valores dos processos
+            processos_agregados[nome]["uso_cpu"] += round(proc.info['cpu_percent'],2)
+            processos_agregados[nome]["uso_ram"] += round(proc.info['memory_percent'],2)
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+
+    # Converte para lista de obj
+    processos_lista = [{
+        "nome": nome,
+        "uso_gpu": dados["uso_gpu"],
+        "uso_cpu": dados["uso_cpu"],
+        "uso_ram": dados["uso_ram"]
+    } for nome, dados in processos_agregados.items()]
+
+    # ordena os processos com hirarquia de uso gpu, cpu e ram
+    processos_ordenados = sorted(
+        processos_lista,
+        key=lambda p: (p['uso_gpu'], p['uso_cpu'], p['uso_ram']),
+        reverse=True
+    )
+    # retorna os top5
+    return processos_ordenados[:5]
 
 def cadastrar_bd(query, params) -> int:
     '''
@@ -284,9 +289,9 @@ def captura() -> None:
             if is_alerta:
                 id_alerta = cadastrar_bd(f'INSERT INTO Alerta (dataHora, fkConfiguracaoMonitoramento, nivel, valor) VALUES (%s, %s, %s, %s);', (data_hora_brasil, config['fkConfiguracaoMonitoramento'], 1, valor))
                 enviar_notificacao(nivel_alerta, id_alerta)
-
+        print(dados_processos)
         for processo in dados_processos:
-            cadastrar_bd(f'INSERT INTO Processo (nomeProcesso, usoCpu, usoGpu, usoRam, dataHora, fkServidor) VALUES (%s,%s,%s,%s,%s,%s);', (processo[0], processo[1], processo[2], processo[3], data_hora_brasil, globais['ID_SERVDIDOR']))
+            cadastrar_bd(f'INSERT INTO Processo (nomeProcesso, usoCpu, usoGpu, usoRam, dataHora, fkServidor) VALUES (%s,%s,%s,%s,%s,%s);', (processo['nome'], processo['uso_cpu'], processo['uso_gpu'], processo['uso_ram'], data_hora_brasil, globais['ID_SERVDIDOR']))
 
         try:
             time.sleep(INTERVALO_CAPTURA)
