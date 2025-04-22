@@ -53,7 +53,7 @@ def coletar_registros(horario_coleta) -> list:
         condicao = 'aaa' # TODO
     conexao = conectar_bd()
     cursor = conexao.cursor()
-    cursor.execute("""SELECT * FROM viewGetServidor WHERE uuidPlacaMae = %s""", (globais['UUID'],)) # TODO realizar o select
+    cursor.execute("""SELECT * FROM viewGetServidor %s""", condicao) # TODO realizar o select
     resultado = cursor.fetchall()
     conexao.close()
     ultima_coleta = datetime.now(fuso_brasil).strftime('%d/%m/%Y-%H:%M')
