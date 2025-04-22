@@ -32,9 +32,9 @@ def conectar_bd() -> None:
             - None
     '''
     globais['conexao'] = mysql.connector.connect(
-        host="ec2-44-212-44-231.compute-1.amazonaws.com",
-        user="infra_root",
-        password="Urubu100#",
+        host="localhost",
+        user="root",
+        password="Ranier2006!",
         database="infrawatch"
     )
 
