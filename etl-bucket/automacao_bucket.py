@@ -31,6 +31,16 @@ def conectar_bd() -> PooledMySQLConnection:
     return conexao
 
 def enviar_arquivo(nome, mes, ano) -> None:
+    '''
+        Envia o arquivo JSON para o bucket S3.
+
+        params:
+            - nome (str): nome do arquivo a ser enviado.
+            - mes (int): mês do arquivo a ser enviado.
+            - ano (int): ano do arquivo a ser enviado.
+        return:
+            - None
+    '''
     s3.upload_file(
         Filename=nome,
         Bucket=os.getenv('BUCKET_NAME'),
@@ -38,6 +48,14 @@ def enviar_arquivo(nome, mes, ano) -> None:
     )
 
 def coletar_registros(horario_coleta) -> list:
+    '''
+        Coleta os registros do banco de dados a partir do horário da última coleta.
+
+        params:
+            - horario_coleta (datetime): horário da última coleta.
+        return:
+            - list: lista de tuplas com os dados coletados do banco de dados.
+    '''
     conexao = conectar_bd()
     cursor = conexao.cursor()
 
@@ -52,10 +70,17 @@ def coletar_registros(horario_coleta) -> list:
     return resultado, ultima_coleta
 
 def organizar_resultado(resultado) -> list:
+    '''
+        Organiza os dados coletados do banco de dados em um dicionário estruturado.
+        
+        params:
+            - resultado (list): lista de tuplas com os dados coletados do banco de dados.
+        return:
+            - list: lista de dicionários com os dados organizados.
+    '''
     capturas_consolidadas = {}
 
     for linha in resultado:
-        print(linha)
         servidor = linha[0]
         dataHora = linha[13].strftime('%Y-%m-%d %H:%M:%S')
         componente = linha[5].lower()
@@ -85,6 +110,15 @@ def organizar_resultado(resultado) -> list:
     return list(capturas_consolidadas.values())
 
 def main() -> None:
+    '''
+    Inicia o processo de ETL, coletando dados do banco de dados e enviando para o S3.
+    O processo é executado diariamente, coletando dados a cada 24 horas.
+
+    params:
+        - None
+    return:
+        - None
+    '''
     global ultima_coleta
     ultima_coleta = None
     while True:
@@ -100,9 +134,50 @@ def main() -> None:
 
         mes = ultima_coleta.month
         ano = ultima_coleta.year
-        #enviar_arquivo(nome_arquivo, mes, ano)
+        enviar_arquivo(nome_arquivo, mes, ano)
 
-        time.sleep(86400) # 24 horas
+        print("\n⏳ \033[1;34m Capturando informações de hardware e processos... \033[0m\n"
+          "🛑 Pressione \033[1;31m CTRL + C \033[0m para encerrar a captura.")
+        
+        try:
+            time.sleep(86400)
+            os.system('cls' if os.name == 'nt' else 'clear')
+        except:
+            exit("Encerrando Captura...")
+
+def init() -> None:
+    '''
+        Inicia o script com uma interface para interação com o usuário.
+
+        params:
+            - None
+        return:
+            - None
+    '''
+    print("SCRIPT DE ETL DOS DADOS DE CAPTURA:")
+    print("✏️  Digite a opção desejada para continuar:")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print("1  Iniciar ETL")
+    print("2  Sair")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+    while True:
+        opt = input("Digite uma opção: ")
+
+        if opt == "1":
+            try:
+                main()
+            except Exception as error:
+                if error.args[0] == 1452:
+                    print("\033[1;31m Encerrando captura: \033[0m Este servidor não está cadastrado em nosso sistema.")
+                else:
+                    print(error)
+            break
+            
+        elif opt == "2":
+            exit(f"Até a próxima!")
+        else:
+            print("Opção inválida!")
 
 if __name__ == "__main__":
-    main()
+    init()
