@@ -3,11 +3,13 @@ import time
 import psutil
 import GPUtil
 import pynvml
+from dotenv import load_dotenv
 import platform
 import subprocess
 import mysql.connector
 from datetime import datetime, timedelta, timezone
 
+load_dotenv()
 globais = {
     'COMANDOS_WINDOWS': ["powershell", "-Command", "Get-WmiObject Win32_BaseBoard ", "| Select-Object -ExpandProperty SerialNumber"],
     'COMANDOS_LINUX': "sudo dmidecode -s system-uuid",
@@ -32,10 +34,10 @@ def conectar_bd() -> None:
             - None
     '''
     globais['conexao'] = mysql.connector.connect(
-        host="localhost",
-        user="root",
-        password="Ranier2006!",
-        database="infrawatch"
+        host=os.getenv('DB_HOST'),
+        user=os.getenv('DB_USER'),
+        password=os.getenv('DB_PASSWORD'),
+        database=os.getenv('DB')
     )
 
     globais['cursor'] = globais['conexao'].cursor()
