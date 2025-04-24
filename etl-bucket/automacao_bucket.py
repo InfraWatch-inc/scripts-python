@@ -127,7 +127,7 @@ def main() -> None:
         dicionario_registros = organizar_resultado(resultado)   
         dt_arquivo = ultima_coleta.strftime('%d-%H:%M')
 
-        nome_arquivo = os.path.join(tempfile.gettempdir(), f'coleta-{dt_arquivo}.json')
+        nome_arquivo = os.path.join(tempfile.gettempdir(), f'coleta-{dt_arquivo}')
         
         with open(nome_arquivo, mode='wt') as file:
             json.dump(dicionario_registros, file)
