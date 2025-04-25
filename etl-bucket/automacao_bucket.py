@@ -28,7 +28,8 @@ def conectar_bd() -> PooledMySQLConnection:
         host=os.getenv('DB_HOST'),
         user=os.getenv('DB_USER'),
         password=os.getenv('DB_PASSWORD'),
-        database=os.getenv('DB')
+        database=os.getenv('DB'),
+        port=os.getenv('DB_PORT')
     )
     return conexao
 
