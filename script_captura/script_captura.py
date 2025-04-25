@@ -37,7 +37,8 @@ def conectar_bd() -> None:
         host=os.getenv('DB_HOST'),
         user=os.getenv('DB_USER'),
         password=os.getenv('DB_PASSWORD'),
-        database=os.getenv('DB')
+        database=os.getenv('DB'),
+        port=os.getenv('DB_PORT')
     )
 
     globais['cursor'] = globais['conexao'].cursor()
@@ -291,7 +292,7 @@ def captura() -> None:
             if is_alerta:
                 id_alerta = cadastrar_bd(f'INSERT INTO Alerta (dataHora, fkConfiguracaoMonitoramento, nivel, valor) VALUES (%s, %s, %s, %s);', (data_hora_brasil, config['fkConfiguracaoMonitoramento'], 1, valor))
                 enviar_notificacao(nivel_alerta, id_alerta)
-        print(dados_processos)
+    
         for processo in dados_processos:
             cadastrar_bd(f'INSERT INTO Processo (nomeProcesso, usoCpu, usoGpu, usoRam, dataHora, fkServidor) VALUES (%s,%s,%s,%s,%s,%s);', (processo['nome'], processo['uso_cpu'], processo['uso_gpu'], processo['uso_ram'], data_hora_brasil, globais['ID_SERVDIDOR']))
 
