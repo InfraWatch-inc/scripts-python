@@ -9,6 +9,8 @@ import mysql.connector
 from mysql.connector.pooling import PooledMySQLConnection
 from dotenv import load_dotenv
 
+# TODO adicionar pastas de ano e mes após Java (Lambda) conseguir identificar esse caminho
+
 load_dotenv()
 fuso_brasil = timezone(timedelta(hours=-3))
 s3 = boto3.client('s3')
@@ -41,10 +43,11 @@ def enviar_arquivo(nome, mes, ano) -> None:
         return:
             - None
     '''
+    diretorio = nome.split('/')[2]
     s3.upload_file(
         Filename=nome,
         Bucket=os.getenv('BUCKET_NAME'),
-        Key=f'coletas/{ano}/{mes}/{nome}.json'
+        Key=f'coletas/{diretorio}'
     )
 
 def coletar_registros(horario_coleta) -> list:
