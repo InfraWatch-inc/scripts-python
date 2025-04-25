@@ -6,6 +6,7 @@ import pynvml
 import requests
 import platform
 import subprocess
+import mysql.connector
 from datetime import datetime, timedelta, timezone
 
 # Usar requests para fazer as requisicoes substituindo o banco de dados - para fazer o model, se basear nas query deste script mesmo
@@ -25,6 +26,24 @@ globais = {
 INTERVALO_CAPTURA = 60
 
 monitoramento = []
+
+def conectar_bd() -> None:
+    '''
+        Inicia ou atualiza a conexão com o banco e o cursor.
+
+        params:
+            - None
+        return:
+            - None
+    '''
+    globais['conexao'] = mysql.connector.connect(
+        host=os.getenv('localhost'),
+        user=os.getenv('root'),
+        password=os.getenv('39380211Kaio!'),
+        database=os.getenv('infrawatch')
+    )
+
+    globais['cursor'] = globais['conexao'].cursor()
 
 def atualizar_itens_monitorar(query) -> None:
     '''
@@ -60,6 +79,7 @@ def coletar_uuid() -> None:
         return:
             - None
     '''
+
     try:
         so =  platform.system()
     except Exception as e:
@@ -68,11 +88,37 @@ def coletar_uuid() -> None:
     try:
         sh = globais['COMANDOS_WINDOWS'] if so == "Windows" else globais['COMANDOS_LINUX']
         globais['UUID'] = subprocess.check_output(sh, shell=True).decode().strip()
+        
     except subprocess.SubprocessError as e:
         print(e)
 
+    uuid = globais["UUID"]
 
-def inicializador() -> None:
+    return uuid
+
+
+def getServidor() -> None:
+    uuid = coletar_uuid()
+
+    print("pinto" + uuid)
+    route = requests.get("http://localhost:3333/monitoramento/{uuid}")
+
+    p = "" 
+
+    if route.status_code == 200:
+        print(route.json())
+        p = print("xereca", route)
+    else:
+        p = print("vasco")
+
+
+    if len(route.json()) == 0: 
+        print("Placa mãe não cadastrada")
+    
+    return p
+
+
+# def inicializador() -> None:
     '''
         Validar se o servidor está cadastrado no banco baseado no uuid e se ele tem dados sobre os compnentes a serem monitorados.
 
@@ -129,9 +175,11 @@ def coletar_dados() -> list:
     except Exception as e:
         print(e)
 
+    
+
     return dados
 
-def enviar_notificacao(nivel_alerta, id_alerta) -> None:
+# def enviar_notificacao(nivel_alerta, id_alerta) -> None:  
     '''
         Abrir chamado no Jira da empresa e complementar com mensagem no Slack, informando o chamado e detalhes do alerta.
 
@@ -144,6 +192,25 @@ def enviar_notificacao(nivel_alerta, id_alerta) -> None:
     # todo - implementar lógica de envio da notificacao 
     print("Abrir chamado e enviando mensagem no Slack...")
     pass
+
+def postDados() -> None:
+    
+    teste = {"idcaptura": 1,
+             "dadoCaptura": 76.4,
+             "dataHora": "2025-04-24",
+             "fkConfiguracaoMonitoramento": 2}
+
+    dados = coletar_dados()
+    print(dados)
+    route = requests.post("http://localhost:3333/monitoramento/dados", data=teste)
+
+    if route.status_code == 200:
+        print("ok")
+    else:
+        print("Não funcionou")
+
+    route
+    
 
 def coletar_dados_processos() -> dict:
     '''
@@ -215,7 +282,7 @@ def coletar_dados_processos() -> dict:
     # retorna os top5
     return processos_ordenados[:5]
 
-def cadastrar_bd(query, params) -> int:
+# def cadastrar_bd(query, params) -> int:
     '''
         Inserir dados no banco de dados e retornar o id do item cadastrado.
 
@@ -239,7 +306,7 @@ def cadastrar_bd(query, params) -> int:
 
     return globais['cursor'].lastrowid
     
-def captura() -> None:
+# def captura() -> None:
     '''
         Iniciar o processo de captura em um Loop while infinito, coletando os dados de hardware e processos a cada 10 minutos (INTERVALO_CAPTURA).
 
@@ -259,6 +326,14 @@ def captura() -> None:
         fuso_brasil = timezone(timedelta(hours=-3))
         data_hora_brasil = datetime.now(fuso_brasil).strftime('%Y-%m-%d %H:%M:%S')
 
+        # 1 get (pegar informações do servidor usando viewGetServidor e passando o uuid como parametro)
+        # 2 post (cadastrar os dados de captura no banco de dados usando a rota de captura)
+        # 3 post (cadastrar os dados de alertas no banco de dados usando a rota de alertas)
+        # 4 post (cadastrar os dados de processos no banco de dados usando a rota de processos)
+
+        getServidor = requests.get('http://localhost:3333')
+        
+        
         for config, valor in zip(monitoramento, dados_servidor):
             cadastrar_bd(f'INSERT INTO Captura (dadoCaptura, dataHora, fkConfiguracaoMonitoramento) VALUES (%s, %s, %s);', (valor, data_hora_brasil, config['fkConfiguracaoMonitoramento']))
             is_alerta = False
@@ -276,6 +351,7 @@ def captura() -> None:
                 id_alerta = cadastrar_bd(f'INSERT INTO Alerta (dataHora, fkConfiguracaoMonitoramento, nivel, valor) VALUES (%s, %s, %s, %s);', (data_hora_brasil, config['fkConfiguracaoMonitoramento'], 1, valor))
                 enviar_notificacao(nivel_alerta, id_alerta)
         print(dados_processos)
+
         for processo in dados_processos:
             cadastrar_bd(f'INSERT INTO Processo (nomeProcesso, usoCpu, usoGpu, usoRam, dataHora, fkServidor) VALUES (%s,%s,%s,%s,%s,%s);', (processo['nome'], processo['uso_cpu'], processo['uso_gpu'], processo['uso_ram'], data_hora_brasil, globais['ID_SERVDIDOR']))
 
@@ -285,7 +361,7 @@ def captura() -> None:
         except:
             exit("Encerrando Captura...")
 
-def init() -> None:
+# def init() -> None:
     '''
         Iniciar a aplicação visual para mostrar opções do usuário (monitoramento ou sair), assim começando o processo de captura ou finalizando a aplicação.
 
@@ -321,5 +397,65 @@ def init() -> None:
         else:
             print("Opção inválida!")
 
+def captura() -> None:
+    '''
+        Iniciar o processo de captura em um Loop while infinito, coletando os dados de hardware e processos a cada 10 minutos (INTERVALO_CAPTURA).
+
+        params:
+            - None
+        return:
+            - None
+    '''
+
+    while True:
+        print("\n⏳ \033[1;34m Capturando informações de hardware e processos... \033[0m\n"
+          "🛑 Pressione \033[1;31m CTRL + C \033[0m para encerrar a captura.")
+        
+        dados_servidor = coletar_dados()
+        dados_processos = coletar_dados_processos()
+
+        fuso_brasil = timezone(timedelta(hours=-3))
+        data_hora_brasil = datetime.now(fuso_brasil).strftime('%Y-%m-%d %H:%M:%S')
+
+        for config, valor in zip(monitoramento, dados_servidor):
+
+            is_alerta = False
+            nivel_alerta = 1
+
+            if valor >= config['limiteCritico']:
+                print("\n🚨 \033[1;34m Alerta crítico gerado... \033[0m\n")
+                nivel_alerta = 2
+                is_alerta = True
+            elif valor >= config['limiteAtencao']:
+                print("\n⚠️ \033[1;34m Alerta atenção gerado... \033[0m\n")
+                is_alerta = True
+
+            if is_alerta:
+                id_alerta = postDadosAlerta()
+                enviar_notificacao(nivel_alerta, id_alerta)
+        print(dados_processos)
+        for processo in dados_processos:
+           postDados()
+
+        try:
+            time.sleep(INTERVALO_CAPTURA)
+            os.system('cls' if os.name == 'nt' else 'clear')
+        except:
+            exit("Encerrando Captura...")
+
+
+def main() -> None:
+
+    dados = coletar_dados()
+
+
+    if(dados != None):
+        postDados()
+
+    else:
+        print("não deu gay", dados)
+
+
 if __name__ == "__main__":
-    inicializador()
+    main()
+    # inicializador()
