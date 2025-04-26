@@ -48,7 +48,7 @@ def enviar_arquivo(nome, mes, ano) -> None:
     s3.upload_file(
         Filename=nome,
         Bucket=os.getenv('BUCKET_NAME'),
-        Key=f'coletas/{diretorio}.json'
+        Key=f'{diretorio}.json'
     )
 
 def coletar_registros(horario_coleta) -> list:
