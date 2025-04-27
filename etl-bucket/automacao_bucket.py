@@ -33,7 +33,7 @@ def conectar_bd() -> PooledMySQLConnection:
     )
     return conexao
 
-def enviar_arquivo(nome, mes, ano, file) -> None:
+def enviar_arquivo(nome, mes, ano) -> None:
     '''
         Envia o arquivo JSON para o bucket S3.
 
@@ -48,14 +48,7 @@ def enviar_arquivo(nome, mes, ano, file) -> None:
     s3.upload_file(
         Filename=nome,
         Bucket=os.getenv('BUCKET_NAME'),
-        Key=nome.split('/')[2],
-        ExtraArgs={
-            'ContentType': 'application/json',
-            'Metadata': {
-                'mes': str(mes),
-                'ano': str(ano)
-            }
-        }
+        Key=nome.split('/')[2]
     )
 
 def coletar_registros(horario_coleta) -> list:
@@ -135,7 +128,6 @@ def main() -> None:
     while True:
         resultado, ultima_coleta = coletar_registros(ultima_coleta)
         
-        resultado = resultado[:30]
         dicionario_registros = organizar_resultado(resultado)   
         
         dt_arquivo = ultima_coleta.strftime('%d-%H:%M')
@@ -145,9 +137,9 @@ def main() -> None:
         with open(nome_arquivo, mode='wt') as file:
             json.dump(dicionario_registros, file)
 
-            mes = ultima_coleta.month
-            ano = ultima_coleta.year
-            enviar_arquivo(nome_arquivo, mes, ano, file)
+        mes = ultima_coleta.month
+        ano = ultima_coleta.year
+        enviar_arquivo(nome_arquivo, mes, ano, file)
 
         print("\n⏳ \033[1;34m Capturando informações de hardware e processos... \033[0m\n"
           "🛑 Pressione \033[1;31m CTRL + C \033[0m para encerrar a captura.")
