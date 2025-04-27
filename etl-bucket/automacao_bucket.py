@@ -139,7 +139,7 @@ def main() -> None:
 
         mes = ultima_coleta.month
         ano = ultima_coleta.year
-        enviar_arquivo(nome_arquivo, mes, ano, file)
+        enviar_arquivo(nome_arquivo, mes, ano)
 
         print("\n⏳ \033[1;34m Capturando informações de hardware e processos... \033[0m\n"
           "🛑 Pressione \033[1;31m CTRL + C \033[0m para encerrar a captura.")
