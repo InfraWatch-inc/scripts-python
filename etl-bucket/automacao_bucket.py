@@ -48,7 +48,7 @@ def enviar_arquivo(nome, mes, ano) -> None:
     s3.upload_file(
         Filename=nome,
         Bucket=os.getenv('BUCKET_NAME'),
-        Key=f'{diretorio}.json'
+        Key=f'{diretorio}'
     )
 
 def coletar_registros(horario_coleta) -> list:
@@ -131,7 +131,7 @@ def main() -> None:
         dicionario_registros = organizar_resultado(resultado)   
         dt_arquivo = ultima_coleta.strftime('%d-%H:%M')
 
-        nome_arquivo = os.path.join(tempfile.gettempdir(), f'coleta-{dt_arquivo}')
+        nome_arquivo = os.path.join(tempfile.gettempdir(), f'coleta-{dt_arquivo}.json')
         
         with open(nome_arquivo, mode='wt') as file:
             json.dump(dicionario_registros, file)
