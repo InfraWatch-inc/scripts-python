@@ -135,7 +135,9 @@ def main() -> None:
     while True:
         resultado, ultima_coleta = coletar_registros(ultima_coleta)
         
+        resultado = resultado[:30]
         dicionario_registros = organizar_resultado(resultado)   
+        
         dt_arquivo = ultima_coleta.strftime('%d-%H:%M')
 
         nome_arquivo = os.path.join(tempfile.gettempdir(), f'coleta-{dt_arquivo}.json')
