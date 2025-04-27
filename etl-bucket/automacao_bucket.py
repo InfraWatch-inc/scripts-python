@@ -45,18 +45,12 @@ def enviar_arquivo(nome, mes, ano, file) -> None:
             - None
     '''
     diretorio = nome.split('/')[2]
-    # s3.upload_file(
-    #     Filename=nome,
-    #     Bucket=os.getenv('BUCKET_NAME'),
-    #     Key=f'{diretorio}'
-    # )
-
-    s3.put_object(
-            Bucket=os.getenv('BUCKET_NAME'),
-            Key=f'{diretorio}',
-            Body=file,
-            ContentType='application/json'
-        )
+    s3.upload_file(
+        Filename=nome,
+        Bucket=os.getenv('BUCKET_NAME'),
+        Key=f'{diretorio}',
+        ContentType='application/json'
+    )
 
 def coletar_registros(horario_coleta) -> list:
     '''
