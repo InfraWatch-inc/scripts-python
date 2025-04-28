@@ -100,16 +100,16 @@ def coletar_uuid() -> None:
 def getServidor() -> None:
     uuid = coletar_uuid()
 
-    print("pinto" + uuid)
+    print("UUID coletado: " + uuid)
     route = requests.get("http://localhost:3333/monitoramento/{uuid}")
 
     p = "" 
 
     if route.status_code == 200:
         print(route.json())
-        p = print("xereca", route)
+        p = print("Servidor não encontrado", route)
     else:
-        p = print("vasco")
+        p = print("Servidor não encontrado")
 
 
     if len(route.json()) == 0: 
@@ -453,7 +453,7 @@ def main() -> None:
         postDados()
 
     else:
-        print("não deu gay", dados)
+        print("Não funciona", dados)
 
 
 if __name__ == "__main__":
