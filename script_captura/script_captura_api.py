@@ -27,24 +27,6 @@ INTERVALO_CAPTURA = 60
 
 monitoramento = []
 
-def conectar_bd() -> None:
-    '''
-        Inicia ou atualiza a conexão com o banco e o cursor.
-
-        params:
-            - None
-        return:
-            - None
-    '''
-    globais['conexao'] = mysql.connector.connect(
-        host=os.getenv('localhost'),
-        user=os.getenv('root'),
-        password=os.getenv('39380211Kaio!'),
-        database=os.getenv('infrawatch')
-    )
-
-    globais['cursor'] = globais['conexao'].cursor()
-
 def atualizar_itens_monitorar(query) -> None:
     '''
         Recebe o resultado da query de select para verificar os itens a ser monitorados de acordo com o que está cadastrado no banco.
@@ -118,7 +100,7 @@ def getServidor() -> None:
     return p
 
 
-# def inicializador() -> None:
+def inicializador() -> None:
     '''
         Validar se o servidor está cadastrado no banco baseado no uuid e se ele tem dados sobre os compnentes a serem monitorados.
 
@@ -179,7 +161,7 @@ def coletar_dados() -> list:
 
     return dados
 
-# def enviar_notificacao(nivel_alerta, id_alerta) -> None:  
+def enviar_notificacao(nivel_alerta, id_alerta) -> None:  
     '''
         Abrir chamado no Jira da empresa e complementar com mensagem no Slack, informando o chamado e detalhes do alerta.
 
@@ -193,7 +175,21 @@ def coletar_dados() -> list:
     print("Abrir chamado e enviando mensagem no Slack...")
     pass
 
-def postDados() -> None:
+def post_dados() -> None:
+    '''
+  {
+    dadosCaptura:
+    {
+        dadoCaptura: undefined,
+        componente: undefined,
+        metrica: undefined,
+        unidade: undefined
+    },
+    dataHora: undefined,
+    idServidor: undefined,
+    processos: []
+  }
+  '''
     
     teste = {"idcaptura": 1,
              "dadoCaptura": 76.4,
@@ -202,6 +198,7 @@ def postDados() -> None:
 
     dados = coletar_dados()
     print(dados)
+    
     route = requests.post("http://localhost:3333/monitoramento/dados", data=teste)
 
     if route.status_code == 200:
@@ -210,7 +207,28 @@ def postDados() -> None:
         print("Não funcionou")
 
     route
-    
+
+def post_dados_alerta() -> int:
+    '''
+    {
+    dadoCaptura: undefined,
+    dataHora: undefined,
+    fkConfiguracaoMonitoramento: undefined,
+    nivel: undefined
+    }
+    '''
+    pass
+
+def post_processos(dados_processos, fkConfiguracaoMonitoramento, dataHora) -> None:
+    '''
+  {
+    idServidor: undefined,
+    fkConfiguracaoMonitoramento: undefined,
+    dataHora: undefined,
+    processos: []
+  }
+  '''
+    pass    
 
 def coletar_dados_processos() -> dict:
     '''
@@ -282,86 +300,7 @@ def coletar_dados_processos() -> dict:
     # retorna os top5
     return processos_ordenados[:5]
 
-# def cadastrar_bd(query, params) -> int:
-    '''
-        Inserir dados no banco de dados e retornar o id do item cadastrado.
-
-        params:
-            - query (str): texto com formatação para fazer a query no banco
-            - params (tuple): dados para complementarem a query
-        return:
-            - int: id do item inserido no banco de dados
-    '''
-    if not globais['conexao'].is_connected():
-        globais['conexao'].reconnect()
-        conectar_bd()
-
-    try:
-        globais['cursor'].execute(query, params)
-        globais['conexao'].commit()
-    except mysql.connector.Error as error:
-        print(f"Erro ao executar a consulta: {error}")
-    except Exception as error:  
-        print(f"Erro inesperado: {error}")
-
-    return globais['cursor'].lastrowid
-    
-# def captura() -> None:
-    '''
-        Iniciar o processo de captura em um Loop while infinito, coletando os dados de hardware e processos a cada 10 minutos (INTERVALO_CAPTURA).
-
-        params:
-            - None
-        return:
-            - None
-    '''
-
-    while True:
-        print("\n⏳ \033[1;34m Capturando informações de hardware e processos... \033[0m\n"
-          "🛑 Pressione \033[1;31m CTRL + C \033[0m para encerrar a captura.")
-        
-        dados_servidor = coletar_dados()
-        dados_processos = coletar_dados_processos()
-
-        fuso_brasil = timezone(timedelta(hours=-3))
-        data_hora_brasil = datetime.now(fuso_brasil).strftime('%Y-%m-%d %H:%M:%S')
-
-        # 1 get (pegar informações do servidor usando viewGetServidor e passando o uuid como parametro)
-        # 2 post (cadastrar os dados de captura no banco de dados usando a rota de captura)
-        # 3 post (cadastrar os dados de alertas no banco de dados usando a rota de alertas)
-        # 4 post (cadastrar os dados de processos no banco de dados usando a rota de processos)
-
-        getServidor = requests.get('http://localhost:3333')
-        
-        
-        for config, valor in zip(monitoramento, dados_servidor):
-            cadastrar_bd(f'INSERT INTO Captura (dadoCaptura, dataHora, fkConfiguracaoMonitoramento) VALUES (%s, %s, %s);', (valor, data_hora_brasil, config['fkConfiguracaoMonitoramento']))
-            is_alerta = False
-            nivel_alerta = 1
-
-            if valor >= config['limiteCritico']:
-                print("\n🚨 \033[1;34m Alerta crítico gerado... \033[0m\n")
-                nivel_alerta = 2
-                is_alerta = True
-            elif valor >= config['limiteAtencao']:
-                print("\n⚠️ \033[1;34m Alerta atenção gerado... \033[0m\n")
-                is_alerta = True
-
-            if is_alerta:
-                id_alerta = cadastrar_bd(f'INSERT INTO Alerta (dataHora, fkConfiguracaoMonitoramento, nivel, valor) VALUES (%s, %s, %s, %s);', (data_hora_brasil, config['fkConfiguracaoMonitoramento'], 1, valor))
-                enviar_notificacao(nivel_alerta, id_alerta)
-        print(dados_processos)
-
-        for processo in dados_processos:
-            cadastrar_bd(f'INSERT INTO Processo (nomeProcesso, usoCpu, usoGpu, usoRam, dataHora, fkServidor) VALUES (%s,%s,%s,%s,%s,%s);', (processo['nome'], processo['uso_cpu'], processo['uso_gpu'], processo['uso_ram'], data_hora_brasil, globais['ID_SERVDIDOR']))
-
-        try:
-            time.sleep(INTERVALO_CAPTURA)
-            os.system('cls' if os.name == 'nt' else 'clear')
-        except:
-            exit("Encerrando Captura...")
-
-# def init() -> None:
+def init() -> None:
     '''
         Iniciar a aplicação visual para mostrar opções do usuário (monitoramento ou sair), assim começando o processo de captura ou finalizando a aplicação.
 
@@ -417,10 +356,15 @@ def captura() -> None:
         fuso_brasil = timezone(timedelta(hours=-3))
         data_hora_brasil = datetime.now(fuso_brasil).strftime('%Y-%m-%d %H:%M:%S')
 
-        for config, valor in zip(monitoramento, dados_servidor):
+        is_alerta = False
+        nivel_alerta = 1
+        dicionario_capturas = []
+        # TODO - criar dicionario de capturas para enviar no post /monitoramento/dados
+        # ENVIAR TUDO PARA AS RESPECTIVAS ROTAS
 
-            is_alerta = False
-            nivel_alerta = 1
+        for config, valor in zip(monitoramento, dados_servidor):
+            is_alerta_loop = False
+            # organizar dados e enviar para a rota /monitoramento/dados com post
 
             if valor >= config['limiteCritico']:
                 print("\n🚨 \033[1;34m Alerta crítico gerado... \033[0m\n")
@@ -430,12 +374,20 @@ def captura() -> None:
                 print("\n⚠️ \033[1;34m Alerta atenção gerado... \033[0m\n")
                 is_alerta = True
 
-            if is_alerta:
-                id_alerta = postDadosAlerta()
+            if is_alerta_loop:
+                # quando for um alerta,enviar na rota /monitoramento/alertas com post
+                id_alerta = post_dados_alerta(nivel_alerta, data_hora_brasil, config['fkConfiguracaoMonitoramento'], valor)
                 enviar_notificacao(nivel_alerta, id_alerta)
-        print(dados_processos)
-        for processo in dados_processos:
-           postDados()
+                is_alerta = True
+
+            
+
+        post_dados(dados_processos, data_hora_brasil, globais['ID_SERVDIDOR'], dicionario_capturas)
+
+        if is_alerta:
+            # enviar os processos dos alertas que foram gerados post /monitoramento/processos
+            post_processos(dados_processos, config['fkConfiguracaoMonitoramento'], data_hora_brasil)
+       
 
         try:
             time.sleep(INTERVALO_CAPTURA)
@@ -444,18 +396,5 @@ def captura() -> None:
             exit("Encerrando Captura...")
 
 
-def main() -> None:
-
-    dados = coletar_dados()
-
-
-    if(dados != None):
-        postDados()
-
-    else:
-        print("Não funciona", dados)
-
-
 if __name__ == "__main__":
-    main()
-    # inicializador()
+    inicializador()
