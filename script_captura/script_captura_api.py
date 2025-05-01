@@ -6,16 +6,10 @@ import pynvml
 import requests
 import platform
 import subprocess
-import mysql.connector
+from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 
-# Usar requests para fazer as requisicoes substituindo o banco de dados - para fazer o model, se basear nas query deste script mesmo
-# serão 4 rotas:
-# 1 get (pegar informações do servidor usando viewGetServidor e passando o uuid como parametro)
-# 2 post (cadastrar os dados de captura no banco de dados usando a rota de captura)
-# 3 post (cadastrar os dados de alertas no banco de dados usando a rota de alertas)
-# 4 post (cadastrar os dados de processos no banco de dados usando a rota de processos)
-
+load_dotenv()
 globais = {
     'COMANDOS_WINDOWS': ["powershell", "-Command", "Get-WmiObject Win32_BaseBoard ", "| Select-Object -ExpandProperty SerialNumber"],
     'COMANDOS_LINUX': "sudo dmidecode -s system-uuid",
@@ -37,14 +31,14 @@ def atualizar_itens_monitorar(query) -> None:
             - None
     '''
     for linha in query:
-            numeracao = linha[1]
-            funcao = linha[3]
-            fkConfig = linha[4]
-            limite_atencao = linha[6]
-            limite_critico = linha[7]
+            numeracao = linha['numeracao']
+            funcao = linha['funcaoPython']
+            fkConfig = linha['idConfiguracaoMonitoramento']
+            limite_atencao = linha['limiteAtencao']
+            limite_critico = linha['limiteCritico']
 
             monitoramento.append({
-                'componente': linha[0],
+                'componente': linha['componente'],
                 'funcao': funcao,
                 'numeracao': numeracao,
                 'fkConfiguracaoMonitoramento':fkConfig,
@@ -79,30 +73,9 @@ def coletar_uuid() -> None:
     return uuid
 
 
-def getServidor() -> None:
-    uuid = coletar_uuid()
-
-    print("UUID coletado: " + uuid)
-    route = requests.get("http://localhost:3333/monitoramento/{uuid}")
-
-    p = "" 
-
-    if route.status_code == 200:
-        print(route.json())
-        p = print("Servidor não encontrado", route)
-    else:
-        p = print("Servidor não encontrado")
-
-
-    if len(route.json()) == 0: 
-        print("Placa mãe não cadastrada")
-    
-    return p
-
-
 def inicializador() -> None:
     '''
-        Validar se o servidor está cadastrado no banco baseado no uuid e se ele tem dados sobre os compnentes a serem monitorados.
+        Validar se o servidor está cadastrado no banco baseado no uuid e se ele tem dados sobre os componentes a serem monitorados.
 
         params:
             - None
@@ -113,15 +86,19 @@ def inicializador() -> None:
     coletar_uuid()
  
     if globais['UUID'] != None:
-        globais['cursor'].execute("""SELECT * FROM viewGetServidor WHERE uuidPlacaMae = %s""", (globais['UUID'],))   
+        res = requests.get(f"{os.getenv('WEB_URL')}/monitoramento/{globais['UUID']}")
 
-        resultado = globais['cursor'].fetchall()
+        resultado = res.json()
 
-        if len(resultado) == 0:
-            print("🛑 O servidor não tem configuração de monitoramento cadastrado no Banco de Dados...")
+        if res.status_code != 200:
+            print("🛑 O servidor não está registrado no Banco de Dados...")
             exit("")
 
-        globais['ID_SERVDIDOR'] = resultado[0][5]
+        # if len(resultado) == 0:
+        #     print("🛑 O servidor não tem configuração de monitoramento cadastrado no Banco de Dados...")
+        #     exit("")
+
+        globais['ID_SERVDIDOR'] = resultado[0]['idServidor']
 
         atualizar_itens_monitorar(resultado)
         init()
@@ -157,8 +134,6 @@ def coletar_dados() -> list:
     except Exception as e:
         print(e)
 
-    
-
     return dados
 
 def enviar_notificacao(nivel_alerta, id_alerta) -> None:  
@@ -175,69 +150,66 @@ def enviar_notificacao(nivel_alerta, id_alerta) -> None:
     print("Abrir chamado e enviando mensagem no Slack...")
     pass
 
-def post_dados() -> None:
+def post_dados(dados) -> None:
     '''
-  {
-    dadosCaptura:
-    {
-        dadoCaptura: undefined,
-        componente: undefined,
-        metrica: undefined,
-        unidade: undefined
-    },
-    dataHora: undefined,
-    idServidor: undefined,
-    processos: []
-  }
-  '''
-    
-    teste = {"idcaptura": 1,
-             "dadoCaptura": 76.4,
-             "dataHora": "2025-04-24",
-             "fkConfiguracaoMonitoramento": 2}
 
-    dados = coletar_dados()
-    print(dados)
-    
-    route = requests.post("http://localhost:3333/monitoramento/dados", data=teste)
+    '''    
+    res = requests.post(f"{os.getenv('WEB_URL')}/monitoramento/cadastrar/dados/{globais['ID_SERVDIDOR']}", data=dados)
 
-    if route.status_code == 200:
+    if res.status_code == 200:
         print("ok")
     else:
-        print("Não funcionou")
+        print("Não cadastrou os dados")
 
-    route
+    print("dados capturados: ", dados)
 
-def post_dados_alerta() -> int:
+def post_alerta(nivel_alerta, data_hora_brasil, fkConfiguracaoMonitoramento, valor) -> int:
     '''
-    {
-    dadoCaptura: undefined,
-    dataHora: undefined,
-    fkConfiguracaoMonitoramento: undefined,
-    nivel: undefined
+    
+    '''
+    dicionario_alerta = {
+        'dadoCaptura': valor,
+        'dataHora': data_hora_brasil,
+        'fkConfiguracaoMonitoramento': fkConfiguracaoMonitoramento,
+        'nivel': nivel_alerta
     }
-    '''
-    pass
+    
+    res = requests.post(f"{os.getenv('WEB_URL')}/monitoramento/cadastrar/alerta", data=dicionario_alerta)
 
-def post_processos(dados_processos, fkConfiguracaoMonitoramento, dataHora) -> None:
-    '''
-  {
-    idServidor: undefined,
-    fkConfiguracaoMonitoramento: undefined,
-    dataHora: undefined,
-    processos: []
-  }
-  '''
-    pass    
+    if res.status_code == 200:
+        print("ok")
+        return res.json()['insertId']
+    else:
+        print("Não cadastrou o alerta")
+        return -1
 
-def coletar_dados_processos() -> dict:
+    
+
+def post_processos(dados_processos, idServidor, data_hora) -> None:
     '''
-        Coleta dos processos do servidor monitorado, sendo eles ranqueados em uso da gpu, cpu e ram e retorna esta informação em forma de dict.
+  
+    '''
+    dictionario_processos = {
+        'idServidor': idServidor,
+        'dataHora': data_hora,
+        'processos': dados_processos
+    }
+
+    res = requests.post(f"{os.getenv('WEB_URL')}/monitoramento/cadastrar/processos", data=dictionario_processos)
+
+    if res.status_code == 200:
+        print("ok")
+    else:
+        print("Não cadastrou os processos")
+
+def coletar_dados_processos() -> list:
+    '''
+        Coleta dos processos do servidor monitorado, sendo eles ranqueados em uso da gpu, cpu e ram e retorna esta informação em forma de list.
 
         params:
             - None
         return:
-            - dict: onjeto com os dados dos top 5 processos em execução no servidor
+            - list: array com os dados dos top 5 processos (dicts) em execução no servidor
     '''
     processos_agregados = {}
 
@@ -359,42 +331,48 @@ def captura() -> None:
         is_alerta = False
         nivel_alerta = 1
         dicionario_capturas = []
-        # TODO - criar dicionario de capturas para enviar no post /monitoramento/dados
-        # ENVIAR TUDO PARA AS RESPECTIVAS ROTAS
 
         for config, valor in zip(monitoramento, dados_servidor):
             is_alerta_loop = False
-            # organizar dados e enviar para a rota /monitoramento/dados com post
+            dicionario_capturas.append({
+                'dadoCaptura': valor,
+                'componente': config['componente'],
+                'metrica': config['funcao'], # TODO
+                'unidade': config['numeracao']
+            })
 
             if valor >= config['limiteCritico']:
                 print("\n🚨 \033[1;34m Alerta crítico gerado... \033[0m\n")
                 nivel_alerta = 2
                 is_alerta = True
+                is_alerta_loop = True
+                
             elif valor >= config['limiteAtencao']:
                 print("\n⚠️ \033[1;34m Alerta atenção gerado... \033[0m\n")
                 is_alerta = True
+                is_alerta_loop = True
 
             if is_alerta_loop:
-                # quando for um alerta,enviar na rota /monitoramento/alertas com post
-                id_alerta = post_dados_alerta(nivel_alerta, data_hora_brasil, config['fkConfiguracaoMonitoramento'], valor)
+                id_alerta = post_alerta(nivel_alerta, data_hora_brasil, config['fkConfiguracaoMonitoramento'], valor)
                 enviar_notificacao(nivel_alerta, id_alerta)
-                is_alerta = True
+        
+        dados_tempo_real = {
+            'idServidor': globais['ID_SERVDIDOR'],
+            'dataHora': data_hora_brasil,
+            'processos': dados_processos,
+            'dadosCaptura': dicionario_capturas
+        }
 
-            
-
-        post_dados(dados_processos, data_hora_brasil, globais['ID_SERVDIDOR'], dicionario_capturas)
+        post_dados(dados_tempo_real)
 
         if is_alerta:
-            # enviar os processos dos alertas que foram gerados post /monitoramento/processos
-            post_processos(dados_processos, config['fkConfiguracaoMonitoramento'], data_hora_brasil)
+            post_processos(dados_processos, globais["ID_SERVDIDOR"], data_hora_brasil)
        
-
         try:
             time.sleep(INTERVALO_CAPTURA)
             os.system('cls' if os.name == 'nt' else 'clear')
         except:
             exit("Encerrando Captura...")
-
 
 if __name__ == "__main__":
     inicializador()
