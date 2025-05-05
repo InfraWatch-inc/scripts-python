@@ -9,13 +9,6 @@ import subprocess
 import mysql.connector
 from datetime import datetime, timedelta, timezone
 
-# Usar requests para fazer as requisicoes substituindo o banco de dados - para fazer o model, se basear nas query deste script mesmo
-# serão 4 rotas:
-# 1 get (pegar informações do servidor usando viewGetServidor e passando o uuid como parametro)
-# 2 post (cadastrar os dados de captura no banco de dados usando a rota de captura)
-# 3 post (cadastrar os dados de alertas no banco de dados usando a rota de alertas)
-# 4 post (cadastrar os dados de processos no banco de dados usando a rota de processos)
-
 globais = {
     'COMANDOS_WINDOWS': ["powershell", "-Command", "Get-WmiObject Win32_BaseBoard ", "| Select-Object -ExpandProperty SerialNumber"],
     'COMANDOS_LINUX': "sudo dmidecode -s system-uuid",
@@ -77,27 +70,6 @@ def coletar_uuid() -> None:
     uuid = globais["UUID"]
 
     return uuid
-
-
-def getServidor() -> None:
-    uuid = coletar_uuid()
-
-    print("UUID coletado: " + uuid)
-    route = requests.get("http://localhost:3333/monitoramento/{uuid}")
-
-    p = "" 
-
-    if route.status_code == 200:
-        print(route.json())
-        p = print("Servidor não encontrado", route)
-    else:
-        p = print("Servidor não encontrado")
-
-
-    if len(route.json()) == 0: 
-        print("Placa mãe não cadastrada")
-    
-    return p
 
 
 def inicializador() -> None:
@@ -177,19 +149,8 @@ def enviar_notificacao(nivel_alerta, id_alerta) -> None:
 
 def post_dados() -> None:
     '''
-  {
-    dadosCaptura:
-    {
-        dadoCaptura: undefined,
-        componente: undefined,
-        metrica: undefined,
-        unidade: undefined
-    },
-    dataHora: undefined,
-    idServidor: undefined,
-    processos: []
-  }
-  '''
+
+    '''
     
     teste = {"idcaptura": 1,
              "dadoCaptura": 76.4,
@@ -210,24 +171,14 @@ def post_dados() -> None:
 
 def post_dados_alerta() -> int:
     '''
-    {
-    dadoCaptura: undefined,
-    dataHora: undefined,
-    fkConfiguracaoMonitoramento: undefined,
-    nivel: undefined
-    }
+    
     '''
     pass
 
 def post_processos(dados_processos, fkConfiguracaoMonitoramento, dataHora) -> None:
     '''
-  {
-    idServidor: undefined,
-    fkConfiguracaoMonitoramento: undefined,
-    dataHora: undefined,
-    processos: []
-  }
-  '''
+  
+    '''
     pass    
 
 def coletar_dados_processos() -> dict:
