@@ -32,6 +32,7 @@ def atualizar_itens_monitorar(query) -> None:
             - None
     '''
     for linha in query:
+            # TODO puxar metricas e descricao
             numeracao = linha['numeracao']
             funcao = linha['funcaoPython']
             fkConfig = linha['idConfiguracaoMonitoramento']
@@ -327,7 +328,7 @@ def captura() -> None:
             dicionario_capturas.append({
                 'dadoCaptura': valor,
                 'componente': config['componente'],
-                'metrica': config['funcao'], # TODO
+                'metrica': config['funcao'], # TODO alterar campo da metrica para puxar a métrica de fato
                 'unidade': config['numeracao']
             })
 
@@ -351,7 +352,7 @@ def captura() -> None:
             'dataHora': data_hora_brasil,
             'processos': dados_processos,
             'dadosCaptura': dicionario_capturas
-        }
+        } # TODO adicionar campo de isAlerta
 
         post_dados(dados_tempo_real)
 
