@@ -6,6 +6,7 @@ import pynvml
 import requests
 import platform
 import subprocess
+import json
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 
@@ -136,25 +137,12 @@ def coletar_dados() -> list:
 
     return dados
 
-def enviar_notificacao(nivel_alerta, id_alerta) -> None:  
-    '''
-        Abrir chamado no Jira da empresa e complementar com mensagem no Slack, informando o chamado e detalhes do alerta.
-
-        params:
-            - nivel_alerta (int): qual o nivel do alerta (1 - atenção, 2 - crítico)
-            - id_alerta (int): id do alerta gravado no banco de dados
-        return:
-            - None
-    '''
-    # todo - implementar lógica de envio da notificacao 
-    print("Abrir chamado e enviando mensagem no Slack...")
-    pass
 
 def post_dados(dados) -> None:
     '''
 
     '''    
-    res = requests.post(f"{os.getenv('WEB_URL')}/monitoramento/cadastrar/dados/{globais['ID_SERVDIDOR']}", data=dados)
+    res = requests.post(f"{os.getenv('WEB_URL')}/monitoramento/cadastrar/dados/{globais['ID_SERVDIDOR']}", data=json.dumps(dados), headers={'Content-Type': 'application/json'})
 
     if res.status_code == 200:
         print("ok")
@@ -174,7 +162,7 @@ def post_alerta(nivel_alerta, data_hora_brasil, fkConfiguracaoMonitoramento, val
         'nivel': nivel_alerta
     }
     
-    res = requests.post(f"{os.getenv('WEB_URL')}/monitoramento/cadastrar/alerta", data=dicionario_alerta)
+    res = requests.post(f"{os.getenv('WEB_URL')}/monitoramento/cadastrar/alerta", data=json.dumps(dicionario_alerta), headers={'Content-Type': 'application/json'})
 
     if res.status_code == 200:
         print("ok")
@@ -195,7 +183,9 @@ def post_processos(dados_processos, idServidor, data_hora) -> None:
         'processos': dados_processos
     }
 
-    res = requests.post(f"{os.getenv('WEB_URL')}/monitoramento/cadastrar/processos", data=dictionario_processos)
+    print(dictionario_processos)
+
+    res = requests.post(f"{os.getenv('WEB_URL')}/monitoramento/cadastrar/processos", data=json.dumps(dictionario_processos), headers={'Content-Type': 'application/json'})
 
     if res.status_code == 200:
         print("ok")
@@ -354,7 +344,7 @@ def captura() -> None:
 
             if is_alerta_loop:
                 id_alerta = post_alerta(nivel_alerta, data_hora_brasil, config['fkConfiguracaoMonitoramento'], valor)
-                enviar_notificacao(nivel_alerta, id_alerta)
+                
         
         dados_tempo_real = {
             'idServidor': globais['ID_SERVDIDOR'],
