@@ -15,10 +15,11 @@ globais = {
     'COMANDOS_WINDOWS': ["powershell", "-Command", "Get-WmiObject Win32_BaseBoard ", "| Select-Object -ExpandProperty SerialNumber"],
     'COMANDOS_LINUX': "sudo dmidecode -s system-uuid",
     'UUID': None, 
-    'ID_SERVDIDOR': None
+    'ID_SERVDIDOR': None,
+    'IS_GPU': False
 }
 
-INTERVALO_CAPTURA = 60
+INTERVALO_CAPTURA = 10
 
 monitoramento = []
 
@@ -32,8 +33,8 @@ def atualizar_itens_monitorar(query) -> None:
             - None
     '''
     for linha in query:
-            # TODO puxar metricas e descricao
             numeracao = linha['numeracao']
+            unidadeMedida = linha['unidadeMedida']
             funcao = linha['funcaoPython']
             fkConfig = linha['idConfiguracaoMonitoramento']
             limite_atencao = linha['limiteAtencao']
@@ -43,6 +44,7 @@ def atualizar_itens_monitorar(query) -> None:
                 'componente': linha['componente'],
                 'funcao': funcao,
                 'numeracao': numeracao,
+                'metrica': unidadeMedida,
                 'fkConfiguracaoMonitoramento':fkConfig,
                 'limiteAtencao': limite_atencao,
                 'limiteCritico': limite_critico
@@ -74,6 +76,13 @@ def coletar_uuid() -> None:
 
     return uuid
 
+def is_GPU(json) -> bool:
+    for item in json:
+        if item['componente'] == "GPU":
+            globais['IS_GPU'] = True
+            return True
+        
+    return False
 
 def inicializador() -> None:
     '''
@@ -103,6 +112,14 @@ def inicializador() -> None:
         globais['ID_SERVDIDOR'] = resultado[0]['idServidor']
 
         atualizar_itens_monitorar(resultado)
+        
+        if is_GPU(resultado):
+            try:
+                pynvml.nvmlInit()
+                print("✅ GPU detectada e pynvml iniciado.")
+            except pynvml.NVMLError as e:
+                print("❌ Erro ao iniciar pynvml:", e)
+
         init()
     else:
         print("🛑 O servidor não está registrado no Banco de Dados...")
@@ -118,7 +135,7 @@ def coletar_dados() -> list:
             - list: lista com os dados coletados dos hardwares informados no monitoramento (dados vindos do banco)
     '''
 
-    pynvml.nvmlInit()
+    # pynvml.nvmlInit()
     try:
         dados = []
         for item in monitoramento:
@@ -193,6 +210,30 @@ def post_processos(dados_processos, idServidor, data_hora) -> None:
     else:
         print("Não cadastrou os processos")
 
+def post_jira(id_alerta, id_servidor, nivel, data_hora, componente, metrica, valor) -> None:
+    '''
+    '''
+
+    dicionario_chamado = {
+        'idAlerta': id_alerta,
+        'idServidor': id_servidor,
+        'nivel': nivel,
+        'dataHora': data_hora,
+        'componente': componente,
+        'metrica': metrica,
+        'valor': valor
+    }
+
+    print(dicionario_chamado)
+
+    res = requests.post(f"{os.getenv('WEB_URL')}/monitoramento/cadastrar/chamado", data=json.dumps(dicionario_chamado), headers={'Content-Type': 'application/json'})
+
+    if res.status_code == 200:
+        print("ok")
+    else: 
+        print("Não realizou a abertura de chamado")
+    pass
+
 def coletar_dados_processos() -> list:
     '''
         Coleta dos processos do servidor monitorado, sendo eles ranqueados em uso da gpu, cpu e ram e retorna esta informação em forma de list.
@@ -260,6 +301,10 @@ def coletar_dados_processos() -> list:
         key=lambda p: (p['uso_gpu'], p['uso_cpu'], p['uso_ram']),
         reverse=True
     )
+
+    # remove processos inúteis, esse processo retorna valores de até 800%, pois é dividido pelos núcleos.
+    processos_ordenados = list(filter(lambda p: p['nome'] != "System Idle Process", processos_ordenados)) 
+
     # retorna os top5
     return processos_ordenados[:5]
 
@@ -328,7 +373,7 @@ def captura() -> None:
             dicionario_capturas.append({
                 'dadoCaptura': valor,
                 'componente': config['componente'],
-                'metrica': config['funcao'], # TODO alterar campo da metrica para puxar a métrica de fato
+                'metrica': config['metrica'],
                 'unidade': config['numeracao']
             })
 
@@ -345,14 +390,25 @@ def captura() -> None:
 
             if is_alerta_loop:
                 id_alerta = post_alerta(nivel_alerta, data_hora_brasil, config['fkConfiguracaoMonitoramento'], valor)
+                id_chamado = post_jira(
+                    id_alerta=id_alerta,
+                    id_servidor=globais['ID_SERVDIDOR'],
+                    nivel=nivel_alerta,
+                    data_hora=data_hora_brasil,
+                    componente=config['componente'],
+                    metrica=config['metrica'],
+                    valor=valor
+                )
                 
         
         dados_tempo_real = {
             'idServidor': globais['ID_SERVDIDOR'],
             'dataHora': data_hora_brasil,
             'processos': dados_processos,
-            'dadosCaptura': dicionario_capturas
-        } # TODO adicionar campo de isAlerta
+            'dadosCaptura': dicionario_capturas,
+            'isAlerta': is_alerta,
+            'idChamado': id_chamado if is_alerta_loop else None
+        } 
 
         post_dados(dados_tempo_real)
 
