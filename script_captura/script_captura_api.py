@@ -39,8 +39,7 @@ def atualizar_itens_monitorar(query) -> None:
             fkConfig = linha['idConfiguracaoMonitoramento']
             limite_atencao = linha['limiteAtencao']
             limite_critico = linha['limiteCritico']
-            # marca = linha['marca']
-            # modelo = linha['modelo']
+        
 
             monitoramento.append({
                 'componente': linha['componente'],
@@ -49,9 +48,8 @@ def atualizar_itens_monitorar(query) -> None:
                 'metrica': unidadeMedida,
                 'fkConfiguracaoMonitoramento':fkConfig,
                 'limiteAtencao': limite_atencao,
-                'limiteCritico': limite_critico,
-                # 'marca': marca,
-                # 'modelo': modelo
+                'limiteCritico': limite_critico
+                
             })
 
 def coletar_uuid() -> None:
