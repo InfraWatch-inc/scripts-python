@@ -22,7 +22,20 @@ globais = {
     'IS_GPU': False
 }
 
-componentes = []
+dados = []
+
+def post_dados(dados) -> None:
+    '''
+
+    '''    
+    res = requests.post(f"{os.getenv('WEB_URL')}/monitoramento/cadastrar/dados/{globais['ID_SERVDIDOR']}", data=json.dumps(dados), headers={'Content-Type': 'application/json'})
+
+    if res.status_code == 200:
+        print("ok")
+    else:
+        print("Não cadastrou os dados")
+
+    print("dados capturados: ", dados)
 
 def extrair_marca_gpu(nome_gpu):
     nome_gpu = nome_gpu.strip()
@@ -51,7 +64,9 @@ def captura_de_componentes() -> None:
     '''
     print("Estou mostrando numero do servidor que sera cadastrado os componentes", globais['ID_SERVDIDOR'])
     
-   # ===================================== CPU =====================================
+    componentes = []
+
+# ===================================== CPU =====================================
     infoCPU = cpuinfo.get_cpu_info()
     infoCPUespecifico = infoCPU['brand_raw'].split()[0] # Captura do Modelo da cpu
     modeloCPU = infoCPU['brand_raw']
@@ -61,15 +76,15 @@ def captura_de_componentes() -> None:
 
     print(f"1: Marca: {marcaCPU} | Modelo: {modeloCPU}")
 
-    componentes.append({"fkServidor": globais['ID_SERVDIDOR'],
-                "componentes":[{"componente": "CPU", 
+    componentes.append({
+                "componente": "CPU", 
                 "marca": marcaCPU,
                 "numeracao": 1,
-                "modelo":modeloCPU}]}) 
+                "modelo":modeloCPU}) 
         
     print(componentes)
 
-    # ===================================== GPU =====================================
+# ===================================== GPU =====================================
     infoGPU = GPUtil.getGPUs()
   
     for i, gpu in enumerate(infoGPU, start=1):
@@ -77,14 +92,56 @@ def captura_de_componentes() -> None:
 
         print(f"{i}: Marca: {marcaGPU} | Modelo: {modeloGPU}")
 
-        componentes.append({"fkServidor": globais['ID_SERVDIDOR'],
-                    "componentes":[{"componente": "GPU", 
+        componentes.append({
+                    "componente": "GPU", 
                     "marca": marcaGPU,
                     "numeracao": i,
-                    "modelo":modeloGPU}]}) 
-    print("Componentes FINAL",componentes)
+                    "modelo":modeloGPU}) 
 
-    # ===================================== RAM =====================================
+# ===================================== RAM =====================================
+    
+    print("✏️  Vamos cadastrar a marca e modelo de sua RAM!:")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+    optMarcaRAM = input("Digite aqui a marca de sua RAM:")
+    marcaRAM = optMarcaRAM
+
+    optModeloRAM = input("Digite aqui o modelo de sua RAM:")
+    modeloRAM = optModeloRAM
+    
+    componentes.append({
+                    "componente": "RAM", 
+                    "marca": marcaRAM,
+                    "numeracao": 1,
+                    "modelo":modeloRAM})
+    
+# ===================================== DISCO =====================================
+
+    print("✏️  Agora iremos cadastrar a marca e modelo de seu Disco principal!:")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+    optMarcaDISCO = input("Digite aqui a marca de seu Disco:")
+    marcaDISCO = optMarcaDISCO
+
+    optModeloDISCO = input("Digite aqui o modelo de seu Disco:")
+    modeloDISCO = optModeloDISCO
+    
+    componentes.append({
+                    "componente": "DISCO", 
+                    "marca": marcaDISCO,
+                    "numeracao": 1,
+                    "modelo":modeloDISCO})
+    
+    # Print final
+
+    dados.append({
+        "fkServidor": globais['ID_SERVDIDOR'],
+        "componentes": componentes
+    })
+
+    print("Componentes FINAL", dados)
+
+    return dados
 
 def coletar_uuid() -> None:
 
