@@ -24,7 +24,7 @@ globais = {
 
 componentes = []
 
-def extrair_marca(nome_gpu):
+def extrair_marca_gpu(nome_gpu):
     nome_gpu = nome_gpu.strip()
     if nome_gpu.lower().startswith("nvidia"):
         return "NVIDIA", nome_gpu.replace("NVIDIA", "").strip()
@@ -35,6 +35,15 @@ def extrair_marca(nome_gpu):
     else:
         return "Desconhecida", nome_gpu
 
+def extrair_marca_cpu(nome_cpu):
+    nome_cpu = nome_cpu.strip()
+    if nome_cpu.lower().startswith("amd"):
+        return "AMD"
+    elif nome_cpu.lower().startswith("intel"):
+        return "Intel"
+    else:
+        return "Desconhecida"
+
 def captura_de_componentes() -> None:
     '''
         Iniciando a captura dos componentes presentes no servidor e posteriomente cadastrando os mesmos no banco.
@@ -42,25 +51,40 @@ def captura_de_componentes() -> None:
     '''
     print("Estou mostrando numero do servidor que sera cadastrado os componentes", globais['ID_SERVDIDOR'])
     
-   
+   # ===================================== CPU =====================================
     infoCPU = cpuinfo.get_cpu_info()
+    infoCPUespecifico = infoCPU['brand_raw'].split()[0] # Captura do Modelo da cpu
+    modeloCPU = infoCPU['brand_raw']
 
-    print (infoCPU['brand_raw']) # Captura do Modelo da cpu
-    print (infoCPU['vendor_id_raw']) # Captura o Vendedor/Marca da cpu
-    
-    teste = ['NVIDIA RTX A6000',
-    'NVIDIA GeForce RTX 3090',
-    'NVIDIA GeForce RTX 2080 Ti', 
-    'a']
+    # Pego apenas a cpu principal do servidor, não encontrei maneira no python de capturar marcas de CPUs diferentes caso houver    
+    marcaCPU = extrair_marca_cpu(infoCPUespecifico)
 
+    print(f"1: Marca: {marcaCPU} | Modelo: {modeloCPU}")
+
+    componentes.append({"fkServidor": globais['ID_SERVDIDOR'],
+                "componentes":[{"componente": "CPU", 
+                "marca": marcaCPU,
+                "numeracao": 1,
+                "modelo":modeloCPU}]}) 
+        
+    print(componentes)
+
+    # ===================================== GPU =====================================
     infoGPU = GPUtil.getGPUs()
-    
-    for i, nome in enumerate(teste, start=1):
-        marca, modelo = extrair_marca(nome)
-        print(f"{i}: Marca: {marca} | Modelo: {modelo}")
-        componentes['fkServidor']    
+  
+    for i, gpu in enumerate(infoGPU, start=1):
+        marcaGPU, modeloGPU = extrair_marca_gpu(gpu.name)
 
+        print(f"{i}: Marca: {marcaGPU} | Modelo: {modeloGPU}")
 
+        componentes.append({"fkServidor": globais['ID_SERVDIDOR'],
+                    "componentes":[{"componente": "GPU", 
+                    "marca": marcaGPU,
+                    "numeracao": i,
+                    "modelo":modeloGPU}]}) 
+    print("Componentes FINAL",componentes)
+
+    # ===================================== RAM =====================================
 
 def coletar_uuid() -> None:
 
