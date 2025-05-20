@@ -28,7 +28,7 @@ def post_dados(dados) -> None:
     '''
 
     '''    
-    res = requests.post(f"{os.getenv('WEB_URL')}/monitoramento/cadastrar/dados/{globais['ID_SERVDIDOR']}", data=json.dumps(dados), headers={'Content-Type': 'application/json'})
+    res = requests.post(f"{os.getenv('WEB_URL')}/componente/cadastrar/dados/{globais['ID_SERVDIDOR']}", data=json.dumps(dados), headers={'Content-Type': 'application/json'})
 
     if res.status_code == 200:
         print("ok")
@@ -141,6 +141,7 @@ def captura_de_componentes() -> None:
 
     print("Componentes FINAL", dados)
 
+    post_dados(dados)
     return dados
 
 def coletar_uuid() -> None:
@@ -182,7 +183,7 @@ def inicializador() -> None:
     coletar_uuid()
  
     if globais['UUID'] != None:
-        res = requests.get(f"{os.getenv('WEB_URL')}/monitoramento/{globais['UUID']}")
+        res = requests.get(f"{os.getenv('WEB_URL')}/monitoramento/componente/{globais['UUID']}")
 
         resultado = res.json()
 
