@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 load_dotenv()
 globais = {
-    'COMANDOS_WINDOWS': ["powershell", "-Command", "Get-WmiObject Win32_BaseBoard ", "| Select-Object -ExpandProperty SerialNumber"],
+    'COMANDOS_WINDOWS': ["powershell", "-Command", "Get-WmiObject Win32_BaseBoard ", "  "],
     'COMANDOS_LINUX': "sudo dmidecode -s system-uuid",
     'UUID': None, 
     'ID_SERVDIDOR': None,
