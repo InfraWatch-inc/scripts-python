@@ -4,7 +4,6 @@ import json
 
 id_projeto = "10001"
 url = "https://plcvision.atlassian.net/rest/api/3"
-
 email = "grigor12f@gmail.com"
 
 headers = {
@@ -23,9 +22,10 @@ response = r.request(
 
 data = json.loads(response.text)
 
-# print(json.dumps(data, indent=2))
+# json_text = json.dumps(data, indent=4)
 
-# extraindo os dados do json
+# print(len(json_text.splitlines()))
+# Extraindo os dados do json
 def extrair_dados(texto):
     linhas = texto.splitlines()
     dados = {}
@@ -46,12 +46,17 @@ def extrair_dados(texto):
         elif "ID do Alerta no Banco:" in linha:
             dados["id_alerta_banco"] = linha.split("ID do Alerta no Banco:")[1].strip()
 
+
     return dados
+
+
 
 # percorre todos os dados
 for issue in data["issues"]:
     desc = issue["fields"].get("description", "")
     texto = ""
+
+    # Extraindo o texto da descrição
     if isinstance(desc, dict):
         try:
             texto = desc["content"][0]["content"][0]["text"]
@@ -60,7 +65,25 @@ for issue in data["issues"]:
     elif isinstance(desc, str):
         texto = desc
 
+    # Extraindo dados principais
     dados = extrair_dados(texto)
+
+    # Buscando o operador responsável dentro da mesma estrutura
+    for item in issue["fields"]["description"]["content"]:
+        if item["type"] == "bulletList":
+            for sub_item in item["content"]:
+                for sub_sub_item in sub_item["content"]:
+                    for text_item in sub_sub_item["content"]:
+                        if "Operador Responsável:" in text_item["text"]:
+                            dados["operador_responsavel"] = text_item["text"].split(": ")[1]
 
     print(dados)
 
+# json_dados = json.dumps(dados, indent=4)
+# print(len(json_dados.splitlines()))
+
+
+
+
+# enviar = r.post("http://127.0.0.1:8000/desempenho/buscar/chamado", method="POST", data=dados #headers='Content-Type': 'application/json' 
+#                ) 
