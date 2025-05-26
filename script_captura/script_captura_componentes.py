@@ -54,12 +54,10 @@ def extrair_marca_gpu(nome_gpu):
         return "Desconhecida", nome_gpu
 
 def extrair_marca_cpu(nome_cpu):
-    nome_cpu = nome_cpu.strip()
-    if nome_cpu.lower().startswith("amd"):
+    nome_cpu = nome_cpu.strip().lower()  
+    if "amd" in nome_cpu:
         return "AMD"
-    elif nome_cpu.lower().startswith("intel"):
-        return "Intel"
-    elif nome_cpu.lower().startswith("Intel"):
+    elif "intel" in nome_cpu:
         return "Intel"
     else:
         return "Desconhecida"
