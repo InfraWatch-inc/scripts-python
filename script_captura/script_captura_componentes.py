@@ -73,13 +73,12 @@ def captura_de_componentes() -> None:
 
 # ===================================== CPU =====================================
     infoCPU = cpuinfo.get_cpu_info()
-    infoCPUespecifico = infoCPU['brand_raw'].split()[0] # Captura do Modelo da cpu
     modeloCPU = infoCPU['brand_raw']
 
     # Pego apenas a cpu principal do servidor, não encontrei maneira no python de capturar marcas de CPUs diferentes caso houver    
-    marcaCPU = extrair_marca_cpu(infoCPUespecifico)
+    marcaCPU = extrair_marca_cpu(modeloCPU)
 
-    # print(f"1: Marca: {marcaCPU} | Modelo: {modeloCPU}")
+    print(f"1: Marca: {marcaCPU} | Modelo: {modeloCPU}")
 
     componentes.append({
                 "componente": "CPU", 
