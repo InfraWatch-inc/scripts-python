@@ -59,6 +59,8 @@ def extrair_marca_cpu(nome_cpu):
         return "AMD"
     elif nome_cpu.lower().startswith("intel"):
         return "Intel"
+    elif nome_cpu.lower().startswith("Intel"):
+        return "Intel"
     else:
         return "Desconhecida"
 
@@ -200,44 +202,7 @@ def inicializador() -> None:
         elif resultado == []:
             print("🛑 O servidor não está registrado no Banco de Dados... Entre em contato com o suporte!")
             exit("")
-            # print("1 - Sim")
-            # print("2 - Não")
-
-            # optCadastroServ = input("Digite uma opção: ")
-
-            # if optCadastroServ == '1':
-            #     print("Realize seu login para cadastrar seu servidor!")
-            #     optEmail = input("✏️  Digite seu e-mail: ")
-            #     optSenha = input("✏️  Digite sua senha: ")
-                
-            #     dadosAutenticar = {
-            #         "email": optEmail,
-            #         "senha": optSenha
-            #     }
-                
-            #     resServ = requests.post(f"{os.getenv('WEB_URL')}/colaboradores/autenticar", data=json.dumps(dadosAutenticar), headers={'Content-Type': 'application/json'})
-            #     resultadoServidor = resServ.json()
-            #     print("Captura de servidores:", resultadoServidor)
-
-            #     if resServ.status_code == 200:
-            #         resultadoServidor = resServ.json()
-            #         print("✅ Login bem-sucedido!")
-            #         print("Resposta:", resultadoServidor)
-            #     else:
-            #         print("🛑 Falha ao autenticar. Verifique seu e-mail e senha.")
-            #         print("Status:", resServ.status_code)
-            #         print("Resposta:", resServ.text)
-            #       uuid = coletar_uuid()
-            #       res = requests.post(f"{os.getenv('WEB_URL')}/componente/cadastrar/servidor/{uuid}", data=json.dumps(uuid), headers={'Content-Type': 'application/json'})
-
-            # elif optCadastroServ == '2':
-            #     print("Servidor não cadastrado!")
-            #     return
-
-            # else:
-            #     print("Opção inválida!")
-            #     inicializador()
-            
+           
 
         globais['ID_SERVDIDOR'] = resultado[0]['idServidor']
         # print(globais)
