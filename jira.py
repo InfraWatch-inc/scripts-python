@@ -77,7 +77,6 @@ for issue in data["issues"]:
 
     print(dados)
 
-# print(len(json_dados.splitlines()))
 
 # enviando para o web-data-viz
 json_dados = json.dumps(dados)
