@@ -3,6 +3,7 @@ import json
 
 
 id_projeto = "10001"
+
 url = "https://plcvision.atlassian.net/rest/api/3"
 email = "grigor12f@gmail.com"
 
@@ -22,9 +23,6 @@ response = r.request(
 
 data = json.loads(response.text)
 
-# json_text = json.dumps(data, indent=4)
-
-# print(len(json_text.splitlines()))
 # Extraindo os dados do json
 def extrair_dados(texto):
     linhas = texto.splitlines()
@@ -79,11 +77,14 @@ for issue in data["issues"]:
 
     print(dados)
 
-# json_dados = json.dumps(dados, indent=4)
 # print(len(json_dados.splitlines()))
 
+# enviando para o web-data-viz
+json_dados = json.dumps(dados)
 
+enviar = r.post("http://127.0.0.1:8000/desempenho/buscar/chamado", data=json_dados, 
+                 headers={'Content-Type': 'application/json'} 
+               ) 
 
-
-# enviar = r.post("http://127.0.0.1:8000/desempenho/buscar/chamado", method="POST", data=dados #headers='Content-Type': 'application/json' 
-#                ) 
+print(enviar.status_code)
+print(enviar.text)
