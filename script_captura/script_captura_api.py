@@ -9,10 +9,11 @@ import subprocess
 import json
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
+from time import time as tempo_atual
 
 load_dotenv()
 globais = {
-    'COMANDOS_WINDOWS': ["powershell", "-Command", "Get-WmiObject Win32_BaseBoard ", "  "],
+    'COMANDOS_WINDOWS': ["powershell", "-Command", "Get-WmiObject Win32_BaseBoard ", "| Select-Object -ExpandProperty SerialNumber"],
     'COMANDOS_LINUX': "sudo dmidecode -s system-uuid",
     'UUID': None, 
     'ID_SERVDIDOR': None,
@@ -21,7 +22,13 @@ globais = {
 
 INTERVALO_CAPTURA = 10
 
+MAX_ALERTAS_POR_COMPONENTES = 5
+
+TEMPO_RESETA_ALERTA = 300 # o tempo está em segundos
+
 monitoramento = []
+
+controle_alertas = {}
 
 def atualizar_itens_monitorar(query) -> None:
     '''
@@ -107,9 +114,9 @@ def inicializador() -> None:
             print("🛑 O servidor não está registrado no Banco de Dados...")
             exit("")
 
-        # if len(resultado) == 0:
-        #     print("🛑 O servidor não tem configuração de monitoramento cadastrado no Banco de Dados...")
-        #     exit("")
+        if len(resultado) == 0:
+            print("🛑 O servidor não tem configuração de monitoramento cadastrado no Banco de Dados...")
+            exit("")
 
         globais['ID_SERVDIDOR'] = resultado[0]['idServidor']
 
@@ -122,8 +129,10 @@ def inicializador() -> None:
             except pynvml.NVMLError as e:
                 print("❌ Erro ao iniciar pynvml:", e)
 
+    while True:
         init()
-    else:
+
+    else:  
         print("🛑 O servidor não está registrado no Banco de Dados...")
         exit("")
 
@@ -333,13 +342,13 @@ def init() -> None:
 
         if opt == "1":
             try:
-                captura()
+                captura()                  
             except Exception as error:
                 if error.args[0] == 1452:
                     print("\033[1;31m Encerrando captura: \033[0m Este servidor não está cadastrado em nosso sistema.")
                 else:
                     print(error)
-            break
+            # break
             
         elif opt == "2":
             exit(f"Até a próxima!")
@@ -369,6 +378,7 @@ def captura() -> None:
         is_alerta = False
         nivel_alerta = 1
         dicionario_capturas = []
+        # id_chamado = None
 
         for config, valor in zip(monitoramento, dados_servidor):
             is_alerta_loop = False
@@ -391,17 +401,35 @@ def captura() -> None:
                 is_alerta_loop = True
 
             if is_alerta_loop:
-                id_alerta = post_alerta(nivel_alerta, data_hora_brasil, config['fkConfiguracaoMonitoramento'], valor)
-                id_chamado = post_jira(
-                    id_alerta=id_alerta,
-                    id_servidor=globais['ID_SERVDIDOR'],
-                    nivel=nivel_alerta,
-                    data_hora=data_hora_brasil,
-                    componente=config['componente'],
-                    metrica=config['metrica'],
-                    valor=valor
-                )
+                componente_key = f"{config['componente']}_{config['numeracao']}"
+
+                now = tempo_atual()
+                # Verifica se o componente já tem um alerta registrado
+                alerta_info = controle_alertas.get(componente_key, {"contador": 0, "ultimo_alerta": 0})
+
+                #reseta o contador dos alertas que passaram do tempo limite.
+                if now - alerta_info["ultimo_alerta"] > TEMPO_RESETA_ALERTA:
+                    alerta_info = {"contador": 0, "ultimo_alerta": now}
+
+                if alerta_info["contador"] < MAX_ALERTAS_POR_COMPONENTES: 
+                    id_alerta = post_alerta(nivel_alerta, data_hora_brasil, config['fkConfiguracaoMonitoramento'], valor)
+                    id_chamado = post_jira(
+                        id_alerta=id_alerta,
+                        id_servidor=globais['ID_SERVDIDOR'],
+                        nivel=nivel_alerta,
+                        data_hora=data_hora_brasil,
+                        componente=config['componente'],
+                        metrica=config['metrica'],
+                        valor=valor
+                    )
+
+                    alerta_info["contador"]+=1
+                    alerta_info["ultimo_alerta"] = now
                 
+                else:
+                    print( print(f"🔕 Alerta para {componente_key} suprimido (limite de {MAX_ALERTAS_POR_COMPONENTES} atingido)."))
+
+                controle_alertas[componente_key] = alerta_info
         
         dados_tempo_real = {
             'idServidor': globais['ID_SERVDIDOR'],
@@ -410,7 +438,7 @@ def captura() -> None:
             'dadosCaptura': dicionario_capturas,
             'isAlerta': is_alerta,
             # 'modelo': modelo
-            'idChamado': id_chamado if is_alerta_loop else None
+            'idChamado': locals().get('id_chamado', None) if is_alerta_loop else None
         } 
 
         post_dados(dados_tempo_real)
@@ -421,7 +449,11 @@ def captura() -> None:
         try:
             time.sleep(INTERVALO_CAPTURA)
             os.system('cls' if os.name == 'nt' else 'clear')
-        except:
+        except KeyboardInterrupt:
+            print("\n🛑 \033[1;31m Captura interrompida pelo usuário. \033[0m")
+            exit("Encerrando Captura...")
+        except Exception as e:
+            print(f"Erro ao limpar a tela: {e}")
             exit("Encerrando Captura...")
 
 if __name__ == "__main__":
