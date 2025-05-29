@@ -4,7 +4,6 @@ import time
 
 
 id_projeto = "10001"
-
 url = "https://plcvision.atlassian.net/rest/api/3"
 email = "grigor12f@gmail.com"
 
