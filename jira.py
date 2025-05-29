@@ -1,5 +1,6 @@
 import requests as r
 import json
+import time
 
 
 id_projeto = "10001"
@@ -37,53 +38,101 @@ def extrair_dados(texto):
             dados["data_hora"] = linha.split("Data/Hora:")[1].strip()
         elif "Tipo de Alerta:" in linha:
             dados["tipo_alerta"] = linha.split("Tipo de Alerta:")[1].strip()
-        elif "Métrica:" in linha:
-            dados["metrica"] = linha.split("Métrica:")[1].strip()
-        elif "Valor Capturado:" in linha:
-            dados["valor"] = linha.split("Valor Capturado:")[1].strip()
         elif "ID do Alerta no Banco:" in linha:
             dados["id_alerta_banco"] = linha.split("ID do Alerta no Banco:")[1].strip()
+      
 
 
     return dados
 
+while True:
+    response = r.request(
+        "GET",
+        query,
+        headers=headers,
+        auth=r.auth.HTTPBasicAuth(email, token)
+    )
+
+    data = json.loads(response.text)
+
+    for issue in data["issues"]:
+        desc = issue["fields"].get("description", "")
+        texto = ""
+
+        if isinstance(desc, dict):
+            try:
+                texto = desc["content"][0]["content"][0]["text"]
+            except (KeyError, IndexError):
+                texto = ""
+        elif isinstance(desc, str):
+            texto = desc
+
+        dados = extrair_dados(texto)
+
+        operadores = []
+
+        for item in issue["fields"]["description"]["content"]:
+         if item["type"] == "bulletList":
+             for sub_item in item["content"]:
+                 for sub_sub_item in sub_item["content"]:
+                     for text_item in sub_sub_item["content"]:
+                         if "Operador Responsável:" in text_item["text"]:
+                             dados["operador_responsavel"] = text_item["text"].split(": ")[1]
+
+       
+
+        print(dados)
+
+        json_dados = json.dumps(dados)
+
+        enviar = r.post(
+            "http://127.0.0.1:8000/desempenho/buscar/chamado",
+            data=json_dados,
+            headers={'Content-Type': 'application/json'}
+        )
+
+        print(enviar.status_code)
+        print(enviar.text)
+
+    # Aguarda 20 segundos antes da próxima iteração
+    time.sleep(20)
 
 
-# percorre todos os dados
-for issue in data["issues"]:
-    desc = issue["fields"].get("description", "")
-    texto = ""
+# # percorre todos os dados
+# for issue in data["issues"]:
+#     desc = issue["fields"].get("description", "")
+#     texto = ""
 
-    # Extraindo o texto da descrição
-    if isinstance(desc, dict):
-        try:
-            texto = desc["content"][0]["content"][0]["text"]
-        except (KeyError, IndexError):
-            texto = ""
-    elif isinstance(desc, str):
-        texto = desc
+#     # Extraindo o texto da descrição
+#     if isinstance(desc, dict):
+#         try:
+#             texto = desc["content"][0]["content"][0]["text"]
+#         except (KeyError, IndexError):
+#             texto = ""
+#     elif isinstance(desc, str):
+#         texto = desc
 
-    # Extraindo dados principais
-    dados = extrair_dados(texto)
+#     # Extraindo dados principais
+#     dados = extrair_dados(texto)
 
-    # Buscando o operador responsável dentro da mesma estrutura
-    for item in issue["fields"]["description"]["content"]:
-        if item["type"] == "bulletList":
-            for sub_item in item["content"]:
-                for sub_sub_item in sub_item["content"]:
-                    for text_item in sub_sub_item["content"]:
-                        if "Operador Responsável:" in text_item["text"]:
-                            dados["operador_responsavel"] = text_item["text"].split(": ")[1]
+#     # Buscando o operador responsável dentro da mesma estrutura
+#     for item in issue["fields"]["description"]["content"]:
+#         if item["type"] == "bulletList":
+#             for sub_item in item["content"]:
+#                 for sub_sub_item in sub_item["content"]:
+#                     for text_item in sub_sub_item["content"]:
+#                         if "Operador Responsável:" in text_item["text"]:
+#                             dados["operador_responsavel"] = text_item["text"].split(": ")[1]
 
-    print(dados)
+#     print(dados)
 
 
-# enviando para o web-data-viz
-json_dados = json.dumps(dados)
+# # enviando para o web-data-viz
+# json_dados = json.dumps(dados)
 
-enviar = r.post("http://127.0.0.1:8000/desempenho/buscar/chamado", data=json_dados, 
-                 headers={'Content-Type': 'application/json'} 
-               ) 
+# enviar = r.post("http://127.0.0.1:8000/desempenho/buscar/chamado", data=json_dados, 
+#                  headers={'Content-Type': 'application/json'} 
+#                ) 
 
-print(enviar.status_code)
-print(enviar.text)
+# print(enviar.status_code)
+# print(enviar.text)
