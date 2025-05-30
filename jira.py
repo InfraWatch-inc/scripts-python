@@ -5,7 +5,6 @@ from datetime import datetime
 
 
 id_projeto = "10001"
-
 url = "https://plcvision.atlassian.net/rest/api/3"
 email = "grigor12f@gmail.com"
 
@@ -20,7 +19,7 @@ query = url + "/search?jql=issuetype=Task&fields=summary,description"
 def extrair_dados(texto):
     linhas = texto.splitlines()
     dados = {}
-
+    
     for linha in linhas:
         if "Componente:" in linha:
             dados["componente"] = linha.split("Componente:")[1].strip()

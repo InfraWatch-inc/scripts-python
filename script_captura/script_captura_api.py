@@ -7,6 +7,7 @@ import requests
 import platform
 import subprocess
 import json
+import cpuinfo
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 from time import time as tempo_atual
@@ -27,6 +28,8 @@ MAX_ALERTAS_POR_COMPONENTES = 5
 TEMPO_RESETA_ALERTA = 300 # o tempo está em segundos
 
 monitoramento = []
+
+dadosComponentes = []
 
 controle_alertas = {}
 
@@ -95,46 +98,71 @@ def is_GPU(json) -> bool:
 
 def inicializador() -> None:
     '''
-        Validar se o servidor está cadastrado no banco baseado no uuid e se ele tem dados sobre os componentes a serem monitorados.
+        Fazer o login, validar se o servidor está cadastrado no banco baseado no uuid e se ele tem dados sobre os componentes a serem monitorados.
 
         params:
             - None
         return:
             - None
-    '''
-    print("Iniciando verificação de Hardware... \n")
-    coletar_uuid()
- 
-    if globais['UUID'] != None:
-        res = requests.get(f"{os.getenv('WEB_URL')}/monitoramento/{globais['UUID']}")
+    ''' 
+    # Login do usuário
+    print("Devemos fazer seu login antes de continuarmos!")
+    emailLogin = input("Digite seu e-mail:")
+    senhaLogin = input("Digite sua senha:")
 
-        resultado = res.json()
+    url = f"{os.getenv('WEB_URL')}/colaboradores/autenticar/{emailLogin}/{senhaLogin}"
+    
+    resultado = requests.post(url)
 
-        if res.status_code != 200:
+    if resultado.status_code != 200:
+            print("🛑 O usuário ou senha incorretos... \n")
+    
+    else:
+        print("\nLogin feito com sucesso! \n")
+    
+
+        print("Iniciando verificação de Hardware... \n")
+        coletar_uuid()
+    
+        if globais['UUID'] != None:
+            res = requests.get(f"{os.getenv('WEB_URL')}/monitoramento/{globais['UUID']}")
+
+            resultado = res.json()
+
+            if res.status_code != 200:
+                print("🛑 O servidor não está registrado no Banco de Dados... \n")
+
+                print("✏️  Deseja cadastrar seu servidor? \n")
+                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                print("1  Sim!")
+                print("2  Não!")
+                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                resposta = input("Digite uma opção:")
+
+                if resposta == '1':
+                    cadastrar_servidor()
+                else:
+                    exit(f"Até a próxima!")
+
+            if len(resultado) == 0:
+                print("🛑 O servidor não tem configuração de monitoramento cadastrado no Banco de Dados...")
+                exit("")
+
+            globais['ID_SERVDIDOR'] = resultado[0]['idServidor']
+
+            atualizar_itens_monitorar(resultado)
+
+            if is_GPU(resultado):
+                try:
+                    pynvml.nvmlInit()
+                    print("✅ GPU detectada e pynvml iniciado.")
+                except pynvml.NVMLError as e:
+                    print("❌ Erro ao iniciar pynvml:", e)
+
+            init()
+        else:  
             print("🛑 O servidor não está registrado no Banco de Dados...")
             exit("")
-
-        if len(resultado) == 0:
-            print("🛑 O servidor não tem configuração de monitoramento cadastrado no Banco de Dados...")
-            exit("")
-
-        globais['ID_SERVDIDOR'] = resultado[0]['idServidor']
-
-        atualizar_itens_monitorar(resultado)
-        
-        if is_GPU(resultado):
-            try:
-                pynvml.nvmlInit()
-                print("✅ GPU detectada e pynvml iniciado.")
-            except pynvml.NVMLError as e:
-                print("❌ Erro ao iniciar pynvml:", e)
-
-    while True:
-        init()
-
-    else:  
-        print("🛑 O servidor não está registrado no Banco de Dados...")
-        exit("")
 
 def coletar_dados() -> list:
     '''
@@ -166,6 +194,149 @@ def coletar_dados() -> list:
 
     return dados
 
+def extrair_marca_gpu(nome_gpu):
+    nome_gpu = nome_gpu.strip().lower()
+    if "nvidia" in nome_gpu:
+        return "NVIDIA", nome_gpu.replace("NVIDIA", "").strip()
+    elif "amd" in nome_gpu:
+        return "AMD", nome_gpu.replace("AMD", "").strip()
+    elif "intel" in nome_gpu:
+        return "Intel", nome_gpu.replace("Intel", "").strip()
+    else:
+        return "Desconhecida", nome_gpu
+
+def extrair_marca_cpu(nome_cpu):
+    nome_cpu = nome_cpu.strip().lower()  
+    if "amd" in nome_cpu:
+        return "AMD"
+    elif "intel" in nome_cpu:
+        return "Intel"
+    else:
+        return "Desconhecida"
+
+def capturar_modelo_disco() -> None:
+    try:
+        COMANDO_WINDOWS = ["powershell", "-Command", "Get-WmiObject Win32_DiskDrive | Select-Object -ExpandProperty Model"]
+
+        resultado = subprocess.check_output(COMANDO_WINDOWS, shell=True).decode().strip()
+
+        return resultado
+    
+    except subprocess.SubprocessError as e:
+        print(e)
+
+def cadastrar_servidor() -> None:
+    
+    print("Vamos iniciar o cadastro do servidor!")
+    tagName = input("Qual a tagName do seu servidor? (Como você chama esse servidor)")
+    tipo = input("Qual tipo do seu servidor? (Ex: fisico, nuvem)")
+    uuidPlacaMae = coletar_uuid()
+    idInstacia = input("Qual o id da sua instância? (Ex: inst-001)")
+    tipo = input("Qual status do seu servidor? (Ex: ativo ou inativo)")
+    dtCadastro = datetime.now().strftime("%Y/%m/%d, %H:%M:%S")
+    so = input("Qual sistema operacional o servidor utiliza? (Ex: Windows ou Linux)")
+    fkEmpresa = "ainda nada"#FAZER FUNÇÃO QUE TRAZ O IDEMPRESA DO USUARIO LOGADO KAIOOOO 
+    fkEndereco = "pegar endereco que esta relaciona com o idEmpresa"
+    
+def cadastrar_componente(dadosComponentes) -> None:
+    '''
+        Iniciando a captura dos componentes presentes no servidor e posteriomente cadastrando os mesmos no banco.
+
+    '''
+    # print("Estou mostrando numero do servidor que sera cadastrado os componentes", globais['ID_SERVDIDOR'])
+    
+    componentes = []
+
+# ===================================== CPU =====================================
+    infoCPU = cpuinfo.get_cpu_info()
+    modeloCPU = infoCPU['brand_raw']
+
+    # Pego apenas a cpu principal do servidor, não encontrei maneira no python de capturar marcas de CPUs diferentes caso houver    
+    marcaCPU = extrair_marca_cpu(modeloCPU)
+
+    print(f"1: Marca: {marcaCPU} | Modelo: {modeloCPU}")
+
+    componentes.append({
+                "componente": "CPU", 
+                "marca": marcaCPU,
+                "numeracao": 1,
+                "modelo":modeloCPU}) 
+        
+    # print(componentes)
+
+# ===================================== GPU =====================================
+    infoGPU = GPUtil.getGPUs()
+  
+    for i, gpu in enumerate(infoGPU, start=1):
+        marcaGPU, modeloGPU = extrair_marca_gpu(gpu.name)
+
+        # print(f"{i}: Marca: {marcaGPU} | Modelo: {modeloGPU}")
+
+        componentes.append({
+                    "componente": "GPU", 
+                    "marca": marcaGPU,
+                    "numeracao": i,
+                    "modelo":modeloGPU}) 
+        
+# ===================================== RAM =====================================
+    print("Captura dos componentes como CPU e GPU feitas!")
+    print("==========================================================================\n")
+    print("✏️   Vamos cadastrar a marca e modelo de sua RAM!:\n")
+
+    optMarcaRAM = input("Digite aqui a marca de sua RAM:")
+    marcaRAM = optMarcaRAM
+
+    optModeloRAM = input("Digite aqui o modelo de sua RAM:")
+    modeloRAM = optModeloRAM
+    
+    componentes.append({
+                    "componente": "RAM", 
+                    "marca": marcaRAM,
+                    "numeracao": 1,
+                    "modelo":modeloRAM})
+    
+# ===================================== DISCO =====================================
+
+    print("\n==========================================================================\n")
+    print("🖴  Capturando modelo de disco automaticamente...\n")
+    modelo_disco = capturar_modelo_disco()
+    if modelo_disco: 
+        print("✏️  Agora iremos cadastrar a marca de seu Disco principal!:\n")
+
+        optMarcaDISCO = input("Digite aqui a marca de seu Disco:")
+        marcaDISCO = optMarcaDISCO
+
+        componentes.append({
+                        "componente": "DISCO", 
+                        "marca": marcaDISCO,
+                        "numeracao": 1,
+                        "modelo":modelo_disco})
+
+    # Print final
+
+    dadosComponentes.append({
+        "fkServidor": globais['ID_SERVDIDOR'],
+        "componentes": componentes
+    })
+
+    # print("Componentes FINAL", dados)
+
+    post_dadosComponente(dadosComponentes)
+    return dadosComponentes
+
+    
+def post_dadosComponente(dadosComponentes) -> None:
+    '''
+
+    '''    
+    res = requests.post(f"{os.getenv('WEB_URL')}/componente/cadastrar/dados/{globais['ID_SERVDIDOR']}", data=json.dumps(dadosComponentes), headers={'Content-Type': 'application/json'})
+
+    if res.status_code == 200:
+        print("Componentes cadastrados com sucesso!")
+    else:
+        print("Não cadastrou os dados")
+
+    # print("dados capturados: ", dados)
 
 def post_dados(dados) -> None:
     '''
@@ -199,8 +370,6 @@ def post_alerta(nivel_alerta, data_hora_brasil, fkConfiguracaoMonitoramento, val
     else:
         print("Não cadastrou o alerta")
         return -1
-
-    
 
 def post_processos(dados_processos, idServidor, data_hora) -> None:
     '''
@@ -333,14 +502,15 @@ def init() -> None:
     print("🔧 Menu de Ações:")
     print("✏️  Digite a opção desejada para continuar:")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    print("1  Iniciar monitoramento")
-    print("2  Sair")
+    print("1  Cadastrar servidor")
+    print("2  Cadastrar componentes e configuração do monitoramento")
+    print("3  Iniciar monitoramento")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
     while True:
         opt = input("Digite uma opção: ")
 
-        if opt == "1":
+        if opt == "3":
             try:
                 captura()                  
             except Exception as error:
@@ -351,9 +521,9 @@ def init() -> None:
             # break
             
         elif opt == "2":
-            exit(f"Até a próxima!")
-        else:
-            print("Opção inválida!")
+            cadastrar_componente() #Falta fazer a parte de pegar quando for linux e cadastro da configuração
+        elif opt == '1':
+            cadastrar_servidor()
 
 def captura() -> None:
     '''
