@@ -1,9 +1,11 @@
 import requests as r
 import json
 import time
+from datetime import datetime
 
 
 id_projeto = "10001"
+
 url = "https://plcvision.atlassian.net/rest/api/3"
 email = "grigor12f@gmail.com"
 
@@ -14,16 +16,7 @@ headers = {
 
 query = url + "/search?jql=issuetype=Task&fields=summary,description"
 
-response = r.request(
-    "GET",
-    query, 
-    headers=headers,
-    auth= r.auth.HTTPBasicAuth(email,token)
-)
-
-data = json.loads(response.text)
-
-# Extraindo os dados do json
+# Função para extrair os dados da descrição
 def extrair_dados(texto):
     linhas = texto.splitlines()
     dados = {}
@@ -39,10 +32,11 @@ def extrair_dados(texto):
             dados["tipo_alerta"] = linha.split("Tipo de Alerta:")[1].strip()
         elif "ID do Alerta no Banco:" in linha:
             dados["id_alerta_banco"] = linha.split("ID do Alerta no Banco:")[1].strip()
-      
-
+        elif "Operador Responsável:" in linha:
+            dados["operador_responsavel"] = linha.split("Operador Responsável:")[1].strip()
 
     return dados
+
 
 while True:
     response = r.request(
@@ -68,70 +62,39 @@ while True:
 
         dados = extrair_dados(texto)
 
-        operadores = []
+        # calcula a data em minutos
+        if "data_hora" in dados and dados["data_hora"]:
+            try:
+                data_alerta = datetime.strptime(dados["data_hora"], "%Y-%m-%d %H:%M:%S")
+                agora = datetime.now()
+                diferenca = agora - data_alerta
+                minutos = int(diferenca.total_seconds() // 60)
+                dados["minutos_aberto"] = minutos
+            except Exception as e:
+                print(f"Erro ao calcular minutos_aberto: {e}")
+                dados["minutos_aberto"] = None
+        else:
+            dados["minutos_aberto"] = None
 
-        for item in issue["fields"]["description"]["content"]:
-         if item["type"] == "bulletList":
-             for sub_item in item["content"]:
-                 for sub_sub_item in sub_item["content"]:
-                     for text_item in sub_sub_item["content"]:
-                         if "Operador Responsável:" in text_item["text"]:
-                             dados["operador_responsavel"] = text_item["text"].split(": ")[1]
+        # pra não ficar undefined
+        campos_obrigatorios = [
+            "componente", "servidor", "data_hora",
+            "tipo_alerta", "id_alerta_banco", "operador_responsavel"
+        ]
 
-       
+        if all(dados.get(campo) for campo in campos_obrigatorios):
+            print(json.dumps(dados, indent=2, ensure_ascii=False))
 
-        print(dados)
+            enviar = r.post(
+                "http://127.0.0.1:8000/desempenho/buscar/chamado",
+                data=json.dumps(dados),
+                headers={'Content-Type': 'application/json'}
+            )
 
-        json_dados = json.dumps(dados)
+            print(enviar.status_code)
+            print(enviar.text)
+        else:
+            print("Chamado ignorado por dados incompletos:")
+            print(json.dumps(dados, indent=2, ensure_ascii=False))
 
-        enviar = r.post(
-            "http://127.0.0.1:8000/desempenho/buscar/chamado",
-            data=json_dados,
-            headers={'Content-Type': 'application/json'}
-        )
-
-        print(enviar.status_code)
-        print(enviar.text)
-
-    # Aguarda 20 segundos antes da próxima iteração
     time.sleep(20)
-
-
-# # percorre todos os dados
-# for issue in data["issues"]:
-#     desc = issue["fields"].get("description", "")
-#     texto = ""
-
-#     # Extraindo o texto da descrição
-#     if isinstance(desc, dict):
-#         try:
-#             texto = desc["content"][0]["content"][0]["text"]
-#         except (KeyError, IndexError):
-#             texto = ""
-#     elif isinstance(desc, str):
-#         texto = desc
-
-#     # Extraindo dados principais
-#     dados = extrair_dados(texto)
-
-#     # Buscando o operador responsável dentro da mesma estrutura
-#     for item in issue["fields"]["description"]["content"]:
-#         if item["type"] == "bulletList":
-#             for sub_item in item["content"]:
-#                 for sub_sub_item in sub_item["content"]:
-#                     for text_item in sub_sub_item["content"]:
-#                         if "Operador Responsável:" in text_item["text"]:
-#                             dados["operador_responsavel"] = text_item["text"].split(": ")[1]
-
-#     print(dados)
-
-
-# # enviando para o web-data-viz
-# json_dados = json.dumps(dados)
-
-# enviar = r.post("http://127.0.0.1:8000/desempenho/buscar/chamado", data=json_dados, 
-#                  headers={'Content-Type': 'application/json'} 
-#                ) 
-
-# print(enviar.status_code)
-# print(enviar.text)
