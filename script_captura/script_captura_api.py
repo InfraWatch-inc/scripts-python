@@ -95,46 +95,71 @@ def is_GPU(json) -> bool:
 
 def inicializador() -> None:
     '''
-        Validar se o servidor está cadastrado no banco baseado no uuid e se ele tem dados sobre os componentes a serem monitorados.
+        Fazer o login, validar se o servidor está cadastrado no banco baseado no uuid e se ele tem dados sobre os componentes a serem monitorados.
 
         params:
             - None
         return:
             - None
-    '''
-    print("Iniciando verificação de Hardware... \n")
-    coletar_uuid()
- 
-    if globais['UUID'] != None:
-        res = requests.get(f"{os.getenv('WEB_URL')}/monitoramento/{globais['UUID']}")
+    ''' 
+    # Login do usuário
+    print("Devemos fazer seu login antes de continuarmos!")
+    emailLogin = input("Digite seu e-mail:")
+    senhaLogin = input("Digite sua senha:")
 
-        resultado = res.json()
+    url = f"{os.getenv('WEB_URL')}/colaboradores/autenticar/{emailLogin}/{senhaLogin}"
+    
+    resultado = requests.post(url)
 
-        if res.status_code != 200:
+    if resultado.status_code != 200:
+            print("🛑 O usuário ou senha incorretos... \n")
+    
+    else:
+        print("\nLogin feito com sucesso! \n")
+    
+
+        print("Iniciando verificação de Hardware... \n")
+        coletar_uuid()
+    
+        if globais['UUID'] != None:
+            res = requests.get(f"{os.getenv('WEB_URL')}/monitoramento/{globais['UUID']}")
+
+            resultado = res.json()
+
+            if res.status_code != 200:
+                print("🛑 O servidor não está registrado no Banco de Dados... \n")
+
+                print("✏️  Deseja cadastrar seu servidor? \n")
+                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                print("1  Sim!")
+                print("2  Não!")
+                print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                resposta = input("Digite uma opção:")
+
+                if resposta == '1':
+                    cadastrar_servidor()
+                else:
+                 exit("")
+
+            if len(resultado) == 0:
+                print("🛑 O servidor não tem configuração de monitoramento cadastrado no Banco de Dados...")
+                exit("")
+
+            globais['ID_SERVDIDOR'] = resultado[0]['idServidor']
+
+            atualizar_itens_monitorar(resultado)
+
+            if is_GPU(resultado):
+                try:
+                    pynvml.nvmlInit()
+                    print("✅ GPU detectada e pynvml iniciado.")
+                except pynvml.NVMLError as e:
+                    print("❌ Erro ao iniciar pynvml:", e)
+
+            init()
+        else:  
             print("🛑 O servidor não está registrado no Banco de Dados...")
             exit("")
-
-        if len(resultado) == 0:
-            print("🛑 O servidor não tem configuração de monitoramento cadastrado no Banco de Dados...")
-            exit("")
-
-        globais['ID_SERVDIDOR'] = resultado[0]['idServidor']
-
-        atualizar_itens_monitorar(resultado)
-        
-        if is_GPU(resultado):
-            try:
-                pynvml.nvmlInit()
-                print("✅ GPU detectada e pynvml iniciado.")
-            except pynvml.NVMLError as e:
-                print("❌ Erro ao iniciar pynvml:", e)
-
-    while True:
-        init()
-
-    else:  
-        print("🛑 O servidor não está registrado no Banco de Dados...")
-        exit("")
 
 def coletar_dados() -> list:
     '''
