@@ -25,13 +25,16 @@ INTERVALO_CAPTURA = 10
 
 MAX_ALERTAS_POR_COMPONENTES = 5
 
-TEMPO_RESETA_ALERTA = 300 # o tempo está em segundos
+TEMPO_RESETA_ALERTA = 3600 # o tempo está em segundos
 
 monitoramento = []
 
 dadosComponentes = []
 
 controle_alertas = {}
+
+fkEmpresa = None
+fkEndereco = None
 
 def atualizar_itens_monitorar(query) -> None:
     '''
@@ -105,21 +108,43 @@ def inicializador() -> None:
         return:
             - None
     ''' 
+
+    global fkEmpresa, fkEndereco
+
     # Login do usuário
-    print("Devemos fazer seu login antes de continuarmos!")
-    emailLogin = input("Digite seu e-mail:")
-    senhaLogin = input("Digite sua senha:")
+    print("\n" + "🔑" * 20 + " LOGIN " + "🔑" * 20)
+    print("Por favor, insira suas credenciais para continuar:\n")
+    emailLogin = input("📧 Digite seu e-mail: ")
+    senhaLogin = input("🔒 Digite sua senha: ")
+    print("-" * 45 + "\n")
 
     url = f"{os.getenv('WEB_URL')}/colaboradores/autenticar/{emailLogin}/{senhaLogin}"
     
     resultado = requests.post(url)
 
+
     if resultado.status_code != 200:
             print("🛑 O usuário ou senha incorretos... \n")
     
+    
     else:
         print("\nLogin feito com sucesso! \n")
-    
+        print("resultado do login quando da certo", resultado.json())
+
+        fkEmpresa = resultado.json()['fkEmpresa']
+        
+        urlEnd = f"{os.getenv('WEB_URL')}/empresas/buscar/{fkEmpresa}"
+        resultadoEnd = requests.get(urlEnd)
+        print("OLHA AQUI KAIO", resultadoEnd.json())
+        if resultadoEnd.status_code != 200:
+            print("🛑 O endereco baseado no idEmpresa não foi pego... \n")
+            print(resultadoEnd.json())
+        else:
+            fkEndereco = resultadoEnd.json()[0]['fkEndereco']
+        
+        print("fkEmpresa ver se funcionou", fkEmpresa)
+        print("enderoco ver se funcionou", fkEndereco)
+
 
         print("Iniciando verificação de Hardware... \n")
         coletar_uuid()
@@ -226,19 +251,51 @@ def capturar_modelo_disco() -> None:
         print(e)
 
 def cadastrar_servidor() -> None:
+
+    print("\n" + "═" * 40)
+    print(" 📝  CADASTRO DE NOVO SERVIDOR ")
+    print("═" * 40 + "\n")
+
+    tagName = input("🏷️  Tag do servidor: ")
     
-    print("Vamos iniciar o cadastro do servidor!")
-    tagName = input("Qual a tagName do seu servidor? (Como você chama esse servidor)")
-    tipo = input("Qual tipo do seu servidor? (Ex: fisico, nuvem)")
     uuidPlacaMae = coletar_uuid()
-    idInstacia = input("Qual o id da sua instância? (Ex: inst-001)")
-    tipo = input("Qual status do seu servidor? (Ex: ativo ou inativo)")
-    dtCadastro = datetime.now().strftime("%Y/%m/%d, %H:%M:%S")
-    so = input("Qual sistema operacional o servidor utiliza? (Ex: Windows ou Linux)")
-    fkEmpresa = "ainda nada"#FAZER FUNÇÃO QUE TRAZ O IDEMPRESA DO USUARIO LOGADO KAIOOOO 
-    fkEndereco = "pegar endereco que esta relaciona com o idEmpresa"
+    idInstancia = None
     
-def cadastrar_componente(dadosComponentes) -> None:
+    status = input("⚙️  Status do servidor (ativo ou inativo): ").strip().lower()
+
+    if status not in ['ativo', 'inativo']:
+        print("⚠️  Status inválido. Digite 'ativo' ou 'inativo'.")
+        exit()
+    
+    dtCadastro = datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+    so = input("💻  Sistema operacional (Ex: Windows ou Linux):")
+  
+    
+    url = f"{os.getenv('WEB_URL')}/servidores/cadastrarDoPython"
+
+    jsonServidor = {
+        "tagName": tagName,
+        "tipo": 'fisico',
+        "uuid": uuidPlacaMae,
+        "idInstancia": idInstancia,
+        "status": status,
+        "dtCadastro": dtCadastro,
+        "so": so,
+        "fkEmpresa": fkEmpresa,
+        "fkEndereco": fkEndereco
+    }
+    
+    print("\n📤  Enviando dados para cadastro")
+
+    res = requests.post(url, data=json.dumps(jsonServidor), headers={'Content-Type': 'application/json'})
+
+    print("-" * 40)
+    if res.status_code == 200:
+       print("✅  Servidor cadastrado com sucesso!")
+    else:
+        print("❌  Falha ao cadastrar o servidor.")
+
+def cadastrar_componente() -> None:
     '''
         Iniciando a captura dos componentes presentes no servidor e posteriomente cadastrando os mesmos no banco.
 
@@ -323,7 +380,6 @@ def cadastrar_componente(dadosComponentes) -> None:
 
     post_dadosComponente(dadosComponentes)
     return dadosComponentes
-
     
 def post_dadosComponente(dadosComponentes) -> None:
     '''
@@ -488,6 +544,117 @@ def coletar_dados_processos() -> list:
     # retorna os top5
     return processos_ordenados[:5]
 
+def configurar_monitoramento() -> None:
+    """
+    Permite ao usuário escolher as configurações de monitoramento para cada componente,
+    incluindo a definição dos limites de atenção e crítico.
+    """
+    configuracoes = []
+
+    # Configuração para CPU
+    print("\n--- Configuração para CPU ---")
+    print("1: Uso da CPU (%)")
+    print("2: Frequência da CPU (MHz)")
+    opcao_cpu = input("Digite o número da opção desejada para CPU: ")
+
+    if opcao_cpu == '1':
+        print("\nConfigurando: Uso da CPU (%)")
+        try:
+            limite_atencao = float(input("Digite o limite de atenção (ex: 80.0): "))
+            limite_critico = float(input("Digite o limite crítico (ex: 95.0): "))
+            configuracoes.append(('%', 'Uso da CPU', 'CPU', limite_atencao, limite_critico, 'psutil.cpu_percent()'))
+            print("Configuração de uso da CPU adicionada.")
+        except ValueError:
+            print("Entrada inválida para os limites. Por favor, digite um número.")
+    elif opcao_cpu == '2':
+        print("\nConfigurando: Frequência da CPU (MHz)")
+        try:
+            limite_atencao = float(input("Digite o limite de atenção (ex: 2000.0): "))
+            limite_critico = float(input("Digite o limite crítico (ex: 4000.0): "))
+            configuracoes.append(('MHz', 'Frequência da CPU', 'CPU', limite_atencao, limite_critico, 'psutil.cpu_freq().current'))
+            print("Configuração de frequência da CPU adicionada.")
+        except ValueError:
+            print("Entrada inválida para os limites. Por favor, digite um número.")
+    else:
+        print("Opção inválida para CPU.")
+
+    # Configuração para RAM
+    print("\n--- Configuração para RAM ---")
+    print("1: Uso da Memória RAM (%)")
+    print("2: Uso da Memória RAM (Byte)")
+    opcao_ram = input("Digite o número da opção desejada para RAM: ")
+
+    if opcao_ram == '1':
+        print("\nConfigurando: Uso da Memória RAM (%)")
+        try:
+            limite_atencao = float(input("Digite o limite de atenção (ex: 75.0): "))
+            limite_critico = float(input("Digite o limite crítico (ex: 90.0): "))
+            configuracoes.append(('%', 'Uso da Memória RAM', 'RAM', limite_atencao, limite_critico, 'psutil.virtual_memory().percent'))
+            print("Configuração de uso da RAM (porcentagem) adicionada.")
+        except ValueError:
+            print("Entrada inválida para os limites. Por favor, digite um número.")
+    elif opcao_ram == '2':
+        print("\nConfigurando: Uso da Memória RAM (Byte)")
+        try:
+            limite_atencao = float(input("Digite o limite de atenção (ex: 8000000000): "))
+            limite_critico = float(input("Digite o limite crítico (ex: 16000000000): "))
+            configuracoes.append(('Byte', 'Uso da Memória RAM', 'RAM', limite_atencao, limite_critico, 'psutil.virtual_memory().used'))
+            print("Configuração de uso da RAM (bytes) adicionada.")
+        except ValueError:
+            print("Entrada inválida para os limites. Por favor, digite um número.")
+    else:
+        print("Opção inválida para RAM.")
+
+    # Configuração para HD
+    print("\n--- Configuração para HD ---")
+    print("1: Uso do HD (%)")
+    opcao_hd = input("Digite o número da opção desejada para HD: ")
+
+    if opcao_hd == '1':
+        print("\nConfigurando: Uso do HD (%)")
+        try:
+            limite_atencao = float(input("Digite o limite de atenção (ex: 85.0): "))
+            limite_critico = float(input("Digite o limite crítico (ex: 95.0): "))
+            configuracoes.append(('%', 'Uso do HD', 'HD', limite_atencao, limite_critico, 'psutil.disk_usage("/").percent'))
+            print("Configuração de uso do HD adicionada.")
+        except ValueError:
+            print("Entrada inválida para os limites. Por favor, digite um número.")
+    else:
+        print("Opção inválida para HD.")
+
+    # Configuração para GPU
+    print("\n--- Configuração para GPU ---")
+    print("1: Uso da GPU (%)")
+    print("2: Temperatura da GPU (°C)")
+    opcao_gpu = input("Digite o número da opção desejada para GPU: ")
+
+    if opcao_gpu == '1':
+        print("\nConfigurando: Uso da GPU (%)")
+        try:
+            limite_atencao = float(input("Digite o limite de atenção (ex: 70.0): "))
+            limite_critico = float(input("Digite o limite crítico (ex: 90.0): "))
+            configuracoes.append(('%', 'Uso da GPU', 'GPU', limite_atencao, limite_critico, 'round(GPUtil.getGPUs()[numeracao - 1].load * 100, 2)'))
+            print("Configuração de uso da GPU adicionada.")
+        except ValueError:
+            print("Entrada inválida para os limites. Por favor, digite um número.")
+    elif opcao_gpu == '2':
+        print("\nConfigurando: Temperatura da GPU (°C)")
+        try:
+            limite_atencao = float(input("Digite o limite de atenção (ex: 60.0): "))
+            limite_critico = float(input("Digite o limite crítico (ex: 90.0): "))
+            configuracoes.append(('ºC', 'Temperatura da GPU', 'GPU', limite_atencao, limite_critico, 'GPUtil.getGPUs()[numeracao -1].temperature'))
+            print("Configuração de temperatura da GPU adicionada.")
+        except ValueError:
+            print("Entrada inválida para os limites. Por favor, digite um número.")
+    else:
+        print("Opção inválida para GPU.")
+
+    print("\n--- Configurações de monitoramento escolhidas ---")
+    for config in configuracoes:
+        print(config)
+
+    return configuracoes    
+
 def init() -> None:
     '''
         Iniciar a aplicação visual para mostrar opções do usuário (monitoramento ou sair), assim começando o processo de captura ou finalizando a aplicação.
@@ -499,16 +666,18 @@ def init() -> None:
     '''
     
     # Menu de pções para o usuário:
-    print("🔧 Menu de Ações:")
-    print("✏️  Digite a opção desejada para continuar:")
-    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    print("1  Cadastrar servidor")
-    print("2  Cadastrar componentes e configuração do monitoramento")
-    print("3  Iniciar monitoramento")
-    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print("\n" + "╔" + "═" * 38 + "╗")
+    print("║ 🛠️  MENU DE AÇÕES DO MONITORAMENTO  🛠️ ║")
+    print("╚" + "═" * 38 + "╝")
+    print("  ✏️  Digite a opção desejada para continuar:\n")
+    print("  ┌" + "─" * 40 + "┐")
+    print("  │ 1️⃣  Cadastrar servidor                  │")
+    print("  │ 2️⃣  Cadastrar componentes e config.     │")
+    print("  │ 3️⃣  Iniciar monitoramento               │")
+    print("  └" + "─" * 40 + "┘\n")
 
     while True:
-        opt = input("Digite uma opção: ")
+        opt = input("👉  Digite sua opção: ")
 
         if opt == "3":
             try:
@@ -521,9 +690,12 @@ def init() -> None:
             # break
             
         elif opt == "2":
-            cadastrar_componente() #Falta fazer a parte de pegar quando for linux e cadastro da configuração
+            cadastrar_componente()
+            configurar_monitoramento()
         elif opt == '1':
             cadastrar_servidor()
+        else:
+            print("⚠️ Opção inválida. Por favor, digite 1, 2 ou 3.")
 
 def captura() -> None:
     '''
