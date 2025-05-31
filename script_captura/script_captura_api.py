@@ -786,8 +786,8 @@ def init() -> None:
             # break
             
         elif opt == "1":
-            # cadastrar_servidor()
-            # cadastrar_componente()
+            cadastrar_servidor()
+            cadastrar_componente()
             configurar_monitoramento()
         else:
             print("⚠️ Opção inválida. Por favor, digite 1 ou 2.")
