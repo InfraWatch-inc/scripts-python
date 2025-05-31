@@ -426,14 +426,15 @@ def post_alerta(nivel_alerta, data_hora_brasil, fkConfiguracaoMonitoramento, val
         print("Não cadastrou o alerta")
         return -1
 
-def post_processos(dados_processos, idServidor, data_hora) -> None:
+def post_processos(dados_processos, idServidor, data_hora, id_alerta) -> None:  
     '''
   
     '''
     dictionario_processos = {
         'idServidor': idServidor,
         'dataHora': data_hora,
-        'processos': dados_processos
+        'processos': dados_processos,
+        'idAlerta': id_alerta
     }
 
     print(dictionario_processos)
@@ -881,7 +882,7 @@ def captura() -> None:
         post_dados(dados_tempo_real)
 
         if is_alerta:
-            post_processos(dados_processos, globais["ID_SERVDIDOR"], data_hora_brasil)
+            post_processos(dados_processos, globais["ID_SERVDIDOR"], data_hora_brasil, id_alerta)
        
         try:
             time.sleep(INTERVALO_CAPTURA)
