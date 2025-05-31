@@ -6,7 +6,7 @@ import boto3
 
 def lambda_handler(event, context):
 
-    url = "http://44.217.192.92:8080/dadosExternos/envioDadosExternos"   
+    url = "http://44.194.222.41:8080/dadosExternos/envioDadosExternos"   
 
     try:
 
@@ -38,9 +38,9 @@ def lambda_handler(event, context):
 
         s3 = boto3.client(
         's3',
-        aws_access_key_id='ASIATGYMGOFGNAC6SHOT',
-        aws_secret_access_key='JXYga54RRvJB0KhAYIRl9p96GQevoVuem5F6PS9',
-        aws_session_token='IQoJb3JpZ2luX2VjEP3//////////wEaCXVzLXdlc3QtMiJHMEUCICy0ZZv9nklxcmO106BvcpDlpaNEzdn93v1fIq/XKnBdAiEAgEjYBeceIbJhtAXoFM620BLElsq+sd9gRY4YMxoKEboqwAIIxv//////////ARABGgwyMjA2Nzk1MzI4NzYiDFy98d90THVqqhkJmiqUAt/+HHt2t5PTPuGxXDQXWVZoCKzT5QQpRlkHY1dWCQQKAWRfHIKYlQ0SB6I47Uf9Ab1PphIhF8xSWt/JUQYZwEDs9esF81wqKtGOS8N2mrrtAWX7goRUWsE/O7ywwAi1lwpr1MstexPkMdBsTlDLtvYtle8zSh62nXAfm3Fx3RJyG0zFff63LPoloEKOUdQX3xJVmHhmWtasOqwnqUdDjgr0zon36nOzBzWsq5wmlfn/gfsNMuuSHNzddffSTw5hoKQI5XQzFCj30x35lxNWO5RFJWvw3OAI2xV+PRpaWa2qzDJdQod1AOnO4dhViCjPWVAGuohERd44gz8orSxbqzKaPlE+D1+C1qVJ8v1euyNgb/geqDDH1O3BBjqdAVP/d78LxkAmV8D7hiJp42fELKGLux4XYIWdEo9ifMvotPb1vxe/EvB6FeguW0fH/iunMu5bvpx5NQX/uU77wUZE180w/k5GZ7ImhzOyHAqcgGZlESYB+UZmN9usIj+Z/RWaoUUK6xN+rOrTEEbmfIiIyx7TwP4T6Ai8h0nM+jJAD86joDdGgQftDn7Re8Jm7IVR3hqXgj4ny2fzeyg=',
+        aws_access_key_id='',
+        aws_secret_access_key='',
+        aws_session_token='',
         region_name='us-east-1'
         )
         
