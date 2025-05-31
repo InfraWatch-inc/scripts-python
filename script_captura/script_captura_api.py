@@ -129,22 +129,21 @@ def inicializador() -> None:
     
     else:
         print("\nLogin feito com sucesso! \n")
-        print("resultado do login quando da certo", resultado.json())
+        # print("resultado do login quando da certo", resultado.json())
 
         fkEmpresa = resultado.json()['fkEmpresa']
         
         urlEnd = f"{os.getenv('WEB_URL')}/empresas/buscar/{fkEmpresa}"
         resultadoEnd = requests.get(urlEnd)
-        print("OLHA AQUI KAIO", resultadoEnd.json())
+        # print("OLHA AQUI KAIO", resultadoEnd.json())
         if resultadoEnd.status_code != 200:
             print("🛑 O endereco baseado no idEmpresa não foi pego... \n")
-            print(resultadoEnd.json())
+            # print(resultadoEnd.json())
         else:
             fkEndereco = resultadoEnd.json()[0]['fkEndereco']
         
-        print("fkEmpresa ver se funcionou", fkEmpresa)
-        print("enderoco ver se funcionou", fkEndereco)
-
+        # print("fkEmpresa ver se funcionou", fkEmpresa)
+        # print("enderoco ver se funcionou", fkEndereco)
 
         print("Iniciando verificação de Hardware... \n")
         coletar_uuid()
@@ -551,109 +550,135 @@ def configurar_monitoramento() -> None:
     """
     configuracoes = []
 
-    # Configuração para CPU
-    print("\n--- Configuração para CPU ---")
-    print("1: Uso da CPU (%)")
-    print("2: Frequência da CPU (MHz)")
-    opcao_cpu = input("Digite o número da opção desejada para CPU: ")
+    url = f"{os.getenv('WEB_URL')}/servidores/buscar/servidorPython/{globais['ID_SERVDIDOR']}"
 
-    if opcao_cpu == '1':
-        print("\nConfigurando: Uso da CPU (%)")
-        try:
-            limite_atencao = float(input("Digite o limite de atenção (ex: 80.0): "))
-            limite_critico = float(input("Digite o limite crítico (ex: 95.0): "))
-            configuracoes.append(('%', 'Uso da CPU', 'CPU', limite_atencao, limite_critico, 'psutil.cpu_percent()'))
-            print("Configuração de uso da CPU adicionada.")
-        except ValueError:
-            print("Entrada inválida para os limites. Por favor, digite um número.")
-    elif opcao_cpu == '2':
-        print("\nConfigurando: Frequência da CPU (MHz)")
-        try:
-            limite_atencao = float(input("Digite o limite de atenção (ex: 2000.0): "))
-            limite_critico = float(input("Digite o limite crítico (ex: 4000.0): "))
-            configuracoes.append(('MHz', 'Frequência da CPU', 'CPU', limite_atencao, limite_critico, 'psutil.cpu_freq().current'))
-            print("Configuração de frequência da CPU adicionada.")
-        except ValueError:
-            print("Entrada inválida para os limites. Por favor, digite um número.")
+    resultado = requests.get(url)
+
+    if resultado.status_code != 200:
+        print("Ta errado kaio", resultado)
     else:
-        print("Opção inválida para CPU.")
+        print(resultado.json())
 
-    # Configuração para RAM
-    print("\n--- Configuração para RAM ---")
-    print("1: Uso da Memória RAM (%)")
-    print("2: Uso da Memória RAM (Byte)")
-    opcao_ram = input("Digite o número da opção desejada para RAM: ")
+        componentes = resultado.json()
 
-    if opcao_ram == '1':
-        print("\nConfigurando: Uso da Memória RAM (%)")
-        try:
-            limite_atencao = float(input("Digite o limite de atenção (ex: 75.0): "))
-            limite_critico = float(input("Digite o limite crítico (ex: 90.0): "))
-            configuracoes.append(('%', 'Uso da Memória RAM', 'RAM', limite_atencao, limite_critico, 'psutil.virtual_memory().percent'))
-            print("Configuração de uso da RAM (porcentagem) adicionada.")
-        except ValueError:
-            print("Entrada inválida para os limites. Por favor, digite um número.")
-    elif opcao_ram == '2':
-        print("\nConfigurando: Uso da Memória RAM (Byte)")
-        try:
-            limite_atencao = float(input("Digite o limite de atenção (ex: 8000000000): "))
-            limite_critico = float(input("Digite o limite crítico (ex: 16000000000): "))
-            configuracoes.append(('Byte', 'Uso da Memória RAM', 'RAM', limite_atencao, limite_critico, 'psutil.virtual_memory().used'))
-            print("Configuração de uso da RAM (bytes) adicionada.")
-        except ValueError:
-            print("Entrada inválida para os limites. Por favor, digite um número.")
-    else:
-        print("Opção inválida para RAM.")
+        for componente_info in componentes:
+            componente_tipo = componente_info.get('componente')
+            componente_id = componente_info.get('idComponente')
 
-    # Configuração para HD
-    print("\n--- Configuração para HD ---")
-    print("1: Uso do HD (%)")
-    opcao_hd = input("Digite o número da opção desejada para HD: ")
+            print(f"\n--- Configuração para {componente_tipo} (ID: {componente_id}) ---")
 
-    if opcao_hd == '1':
-        print("\nConfigurando: Uso do HD (%)")
-        try:
-            limite_atencao = float(input("Digite o limite de atenção (ex: 85.0): "))
-            limite_critico = float(input("Digite o limite crítico (ex: 95.0): "))
-            configuracoes.append(('%', 'Uso do HD', 'HD', limite_atencao, limite_critico, 'psutil.disk_usage("/").percent'))
-            print("Configuração de uso do HD adicionada.")
-        except ValueError:
-            print("Entrada inválida para os limites. Por favor, digite um número.")
-    else:
-        print("Opção inválida para HD.")
+            if componente_tipo == 'CPU':
 
-    # Configuração para GPU
-    print("\n--- Configuração para GPU ---")
-    print("1: Uso da GPU (%)")
-    print("2: Temperatura da GPU (°C)")
-    opcao_gpu = input("Digite o número da opção desejada para GPU: ")
+                # Configuração para CPU
 
-    if opcao_gpu == '1':
-        print("\nConfigurando: Uso da GPU (%)")
-        try:
-            limite_atencao = float(input("Digite o limite de atenção (ex: 70.0): "))
-            limite_critico = float(input("Digite o limite crítico (ex: 90.0): "))
-            configuracoes.append(('%', 'Uso da GPU', 'GPU', limite_atencao, limite_critico, 'round(GPUtil.getGPUs()[numeracao - 1].load * 100, 2)'))
-            print("Configuração de uso da GPU adicionada.")
-        except ValueError:
-            print("Entrada inválida para os limites. Por favor, digite um número.")
-    elif opcao_gpu == '2':
-        print("\nConfigurando: Temperatura da GPU (°C)")
-        try:
-            limite_atencao = float(input("Digite o limite de atenção (ex: 60.0): "))
-            limite_critico = float(input("Digite o limite crítico (ex: 90.0): "))
-            configuracoes.append(('ºC', 'Temperatura da GPU', 'GPU', limite_atencao, limite_critico, 'GPUtil.getGPUs()[numeracao -1].temperature'))
-            print("Configuração de temperatura da GPU adicionada.")
-        except ValueError:
-            print("Entrada inválida para os limites. Por favor, digite um número.")
-    else:
-        print("Opção inválida para GPU.")
+                print("\n--- Configuração para CPU ---")
+                print("1: Uso da CPU (%)")
+                print("2: Frequência da CPU (MHz)")
+                opcao_cpu = input("Digite o número da opção desejada para CPU: ")
 
-    print("\n--- Configurações de monitoramento escolhidas ---")
-    for config in configuracoes:
-        print(config)
+                if opcao_cpu == '1':
+                    print("\nConfigurando: Uso da CPU (%)")
+                    try:
+                        limite_atencao = float(input("Digite o limite de atenção (ex: 80.0): "))
+                        limite_critico = float(input("Digite o limite crítico (ex: 95.0): "))
+                        configuracoes.append(('%', 'Uso da CPU', componente_id, limite_atencao, limite_critico, 'psutil.cpu_percent()'))
+                        print("Configuração de uso da CPU adicionada.")
+                    except ValueError:
+                        print("Entrada inválida para os limites. Por favor, digite um número.")
+                elif opcao_cpu == '2':
+                    print("\nConfigurando: Frequência da CPU (MHz)")
+                    try:
+                        limite_atencao = float(input("Digite o limite de atenção (ex: 2000.0): "))
+                        limite_critico = float(input("Digite o limite crítico (ex: 4000.0): "))
+                        configuracoes.append(('MHz', 'Frequência da CPU', componente_id, limite_atencao, limite_critico, 'psutil.cpu_freq().current'))
+                        print("Configuração de frequência da CPU adicionada.")
+                    except ValueError:
+                        print("Entrada inválida para os limites. Por favor, digite um número.")
+                else:
+                    print("Opção inválida para CPU.")
 
-    return configuracoes    
+            elif componente_tipo == 'RAM':
+
+                # Configuração para RAM
+
+                print("\n--- Configuração para RAM ---")
+                print("1: Uso da Memória RAM (%)")
+                print("2: Uso da Memória RAM (Byte)")
+                opcao_ram = input("Digite o número da opção desejada para RAM: ")
+
+                if opcao_ram == '1':
+                    print("\nConfigurando: Uso da Memória RAM (%)")
+                    try:
+                        limite_atencao = float(input("Digite o limite de atenção (ex: 75.0): "))
+                        limite_critico = float(input("Digite o limite crítico (ex: 90.0): "))
+                        configuracoes.append(('%', 'Uso da Memória RAM', componente_id, limite_atencao, limite_critico, 'psutil.virtual_memory().percent'))
+                        print("Configuração de uso da RAM (porcentagem) adicionada.")
+                    except ValueError:
+                        print("Entrada inválida para os limites. Por favor, digite um número.")
+                elif opcao_ram == '2':
+                    print("\nConfigurando: Uso da Memória RAM (Byte)")
+                    try:
+                        limite_atencao = float(input("Digite o limite de atenção (ex: 8000000000): "))
+                        limite_critico = float(input("Digite o limite crítico (ex: 16000000000): "))
+                        configuracoes.append(('Byte', 'Uso da Memória RAM', componente_id, limite_atencao, limite_critico, 'psutil.virtual_memory().used'))
+                        print("Configuração de uso da RAM (bytes) adicionada.")
+                    except ValueError:
+                        print("Entrada inválida para os limites. Por favor, digite um número.")
+                else:
+                 print("Opção inválida para RAM.")
+
+            elif componente_tipo == 'DISCO':
+                # Configuração para disco
+                print("\n--- Configuração para disco ---")
+                print("1: Uso do disco (%)")
+                opcao_disco = input("Digite o número da opção desejada para disco: ")
+
+                if opcao_disco == '1':
+                    print("\nConfigurando: Uso do disco (%)")
+                    try:
+                        limite_atencao = float(input("Digite o limite de atenção (ex: 85.0): "))
+                        limite_critico = float(input("Digite o limite crítico (ex: 95.0): "))
+                        configuracoes.append(('%', 'Uso do disco', componente_id, limite_atencao, limite_critico, 'psutil.disk_usage("/").percent'))
+                        print("Configuração de uso do disco adicionada.")
+                    except ValueError:
+                        print("Entrada inválida para os limites. Por favor, digite um número.")
+                else:
+                    print("Opção inválida para disco.")
+
+            elif componente_tipo == 'GPU':
+                # Configuração para GPU
+                print("\n--- Configuração para GPU ---")
+                print("1: Uso da GPU (%)")
+                print("2: Temperatura da GPU (°C)")
+                opcao_gpu = input("Digite o número da opção desejada para GPU: ")
+
+                if opcao_gpu == '1':
+                    print("\nConfigurando: Uso da GPU (%)")
+                    try:
+                        limite_atencao = float(input("Digite o limite de atenção (ex: 70.0): "))
+                        limite_critico = float(input("Digite o limite crítico (ex: 90.0): "))
+                        configuracoes.append(('%', 'Uso da GPU', componente_id, limite_atencao, limite_critico, 'round(GPUtil.getGPUs()[numeracao - 1].load * 100, 2)'))
+                        print("Configuração de uso da GPU adicionada.")
+                    except ValueError:
+                        print("Entrada inválida para os limites. Por favor, digite um número.")
+                elif opcao_gpu == '2':
+                    print("\nConfigurando: Temperatura da GPU (°C)")
+                    try:
+                        limite_atencao = float(input("Digite o limite de atenção (ex: 60.0): "))
+                        limite_critico = float(input("Digite o limite crítico (ex: 90.0): "))
+                        configuracoes.append(('ºC', 'Temperatura da GPU', componente_id, limite_atencao, limite_critico, 'GPUtil.getGPUs()[numeracao -1].temperature'))
+                        print("Configuração de temperatura da GPU adicionada.")
+                    except ValueError:
+                        print("Entrada inválida para os limites. Por favor, digite um número.")
+                else:
+                    print("Opção inválida para GPU.")
+
+        print("\n--- Configurações de monitoramento escolhidas ---")
+        for config in configuracoes:
+            print(config)
+
+        
+        return configuracoes    
 
 def init() -> None:
     '''
@@ -667,19 +692,18 @@ def init() -> None:
     
     # Menu de pções para o usuário:
     print("\n" + "╔" + "═" * 38 + "╗")
-    print("║ 🛠️  MENU DE AÇÕES DO MONITORAMENTO  🛠️ ║")
+    print("║ 🛠️  MENU DE AÇÕES DO MONITORAMENTO 🛠️  ║")
     print("╚" + "═" * 38 + "╝")
     print("  ✏️  Digite a opção desejada para continuar:\n")
-    print("  ┌" + "─" * 40 + "┐")
-    print("  │ 1️⃣  Cadastrar servidor                  │")
-    print("  │ 2️⃣  Cadastrar componentes e config.     │")
-    print("  │ 3️⃣  Iniciar monitoramento               │")
-    print("  └" + "─" * 40 + "┘\n")
+    print("  ┌" + "─" * 46 + "┐")
+    print("  │ 1️⃣  Cadastrar servidor, componentes e config. │")
+    print("  │ 2️⃣  Iniciar monitoramento                     │")
+    print("  └" + "─" * 46 + "┘\n")
 
     while True:
         opt = input("👉  Digite sua opção: ")
 
-        if opt == "3":
+        if opt == "2":
             try:
                 captura()                  
             except Exception as error:
@@ -689,13 +713,12 @@ def init() -> None:
                     print(error)
             # break
             
-        elif opt == "2":
-            cadastrar_componente()
+        elif opt == "1":
+            # cadastrar_servidor()
+            # cadastrar_componente()
             configurar_monitoramento()
-        elif opt == '1':
-            cadastrar_servidor()
         else:
-            print("⚠️ Opção inválida. Por favor, digite 1, 2 ou 3.")
+            print("⚠️ Opção inválida. Por favor, digite 1 ou 2.")
 
 def captura() -> None:
     '''
