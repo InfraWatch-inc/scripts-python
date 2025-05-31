@@ -469,6 +469,26 @@ def post_jira(id_alerta, id_servidor, nivel, data_hora, componente, metrica, val
         print("Não realizou a abertura de chamado")
     pass
 
+def post_configuracoes_monitoramento(configuracoes) -> None:
+    '''
+    Inserindo configurações de monitoramento no banco de dados.
+    '''
+    url = f"{os.getenv('WEB_URL')}/componente/cadastrar/configuracaoMonitoramento"
+    res = requests.post(url, data=json.dumps(configuracoes), headers={'Content-Type': 'application/json'})
+
+    try:
+        res = requests.post(url, data=json.dumps(configuracoes), headers={'Content-Type': 'application/json'})
+
+        if res.status_code >= 200 and res.status_code < 300: # Verifica se o status é 2xx (sucesso)
+            print("✅ Cadastrei a configuração do monitoramento com sucesso!")
+        else:
+            print("❌ Não cadastrou a configuração do monitoramento.")
+            print(f"Status Code: {res.status_code}") # Imprime o status code
+            print(f"Response Text: {res.text}")     # Imprime o texto da resposta da API
+            
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Erro de conexão ao enviar configurações de monitoramento: {e}")
+
 def coletar_dados_processos() -> list:
     '''
         Coleta dos processos do servidor monitorado, sendo eles ranqueados em uso da gpu, cpu e ram e retorna esta informação em forma de list.
@@ -543,6 +563,8 @@ def coletar_dados_processos() -> list:
     # retorna os top5
     return processos_ordenados[:5]
 
+
+
 def configurar_monitoramento() -> None:
     """
     Permite ao usuário escolher as configurações de monitoramento para cada componente,
@@ -581,7 +603,14 @@ def configurar_monitoramento() -> None:
                     try:
                         limite_atencao = float(input("Digite o limite de atenção (ex: 80.0): "))
                         limite_critico = float(input("Digite o limite crítico (ex: 95.0): "))
-                        configuracoes.append(('%', 'Uso da CPU', componente_id, limite_atencao, limite_critico, 'psutil.cpu_percent()'))
+                        configuracoes.append({ 
+                                'unidadeMedida': '%',
+                                'descricao': 'Uso da CPU',
+                                'fkComponente': componente_id,
+                                'limiteAtencao': limite_atencao,
+                                'limiteCritico': limite_critico,
+                                'funcaoPython': 'psutil.cpu_percent()'
+                            })
                         print("Configuração de uso da CPU adicionada.")
                     except ValueError:
                         print("Entrada inválida para os limites. Por favor, digite um número.")
@@ -590,7 +619,14 @@ def configurar_monitoramento() -> None:
                     try:
                         limite_atencao = float(input("Digite o limite de atenção (ex: 2000.0): "))
                         limite_critico = float(input("Digite o limite crítico (ex: 4000.0): "))
-                        configuracoes.append(('MHz', 'Frequência da CPU', componente_id, limite_atencao, limite_critico, 'psutil.cpu_freq().current'))
+                        configuracoes.append({ 
+                                'unidadeMedida': 'MHz',
+                                'descricao': 'Frequência da CPU',
+                                'fkComponente': componente_id,
+                                'limiteAtencao': limite_atencao,
+                                'limiteCritico': limite_critico,
+                                'funcaoPython': 'psutil.cpu_freq().current'
+                            })
                         print("Configuração de frequência da CPU adicionada.")
                     except ValueError:
                         print("Entrada inválida para os limites. Por favor, digite um número.")
@@ -611,7 +647,14 @@ def configurar_monitoramento() -> None:
                     try:
                         limite_atencao = float(input("Digite o limite de atenção (ex: 75.0): "))
                         limite_critico = float(input("Digite o limite crítico (ex: 90.0): "))
-                        configuracoes.append(('%', 'Uso da Memória RAM', componente_id, limite_atencao, limite_critico, 'psutil.virtual_memory().percent'))
+                        configuracoes.append({ 
+                                'unidadeMedida': '%',
+                                'descricao': 'Uso da Memória RAM',
+                                'fkComponente': componente_id,
+                                'limiteAtencao': limite_atencao,
+                                'limiteCritico': limite_critico,
+                                'funcaoPython': 'psutil.virtual_memory().percent'
+                            })
                         print("Configuração de uso da RAM (porcentagem) adicionada.")
                     except ValueError:
                         print("Entrada inválida para os limites. Por favor, digite um número.")
@@ -620,7 +663,14 @@ def configurar_monitoramento() -> None:
                     try:
                         limite_atencao = float(input("Digite o limite de atenção (ex: 8000000000): "))
                         limite_critico = float(input("Digite o limite crítico (ex: 16000000000): "))
-                        configuracoes.append(('Byte', 'Uso da Memória RAM', componente_id, limite_atencao, limite_critico, 'psutil.virtual_memory().used'))
+                        configuracoes.append({ 
+                                'unidadeMedida': 'Byte',
+                                'descricao': 'Uso da Memória RAM',
+                                'fkComponente': componente_id,
+                                'limiteAtencao': limite_atencao,
+                                'limiteCritico': limite_critico,
+                                'funcaoPython': 'psutil.virtual_memory().used'
+                            })
                         print("Configuração de uso da RAM (bytes) adicionada.")
                     except ValueError:
                         print("Entrada inválida para os limites. Por favor, digite um número.")
@@ -638,7 +688,14 @@ def configurar_monitoramento() -> None:
                     try:
                         limite_atencao = float(input("Digite o limite de atenção (ex: 85.0): "))
                         limite_critico = float(input("Digite o limite crítico (ex: 95.0): "))
-                        configuracoes.append(('%', 'Uso do disco', componente_id, limite_atencao, limite_critico, 'psutil.disk_usage("/").percent'))
+                        configuracoes.append({ 
+                                'unidadeMedida': '%',
+                                'descricao': 'Uso do Disco',
+                                'fkComponente': componente_id,
+                                'limiteAtencao': limite_atencao,
+                                'limiteCritico': limite_critico,
+                                'funcaoPython': 'psutil.disk_usage("/").percent' 
+                            })
                         print("Configuração de uso do disco adicionada.")
                     except ValueError:
                         print("Entrada inválida para os limites. Por favor, digite um número.")
@@ -657,7 +714,14 @@ def configurar_monitoramento() -> None:
                     try:
                         limite_atencao = float(input("Digite o limite de atenção (ex: 70.0): "))
                         limite_critico = float(input("Digite o limite crítico (ex: 90.0): "))
-                        configuracoes.append(('%', 'Uso da GPU', componente_id, limite_atencao, limite_critico, 'round(GPUtil.getGPUs()[numeracao - 1].load * 100, 2)'))
+                        configuracoes.append({ 
+                                'unidadeMedida': '%',
+                                'descricao': 'Uso da GPU ',
+                                'fkComponente': componente_id,
+                                'limiteAtencao': limite_atencao,
+                                'limiteCritico': limite_critico,
+                                'funcaoPython': 'round(GPUtil.getGPUs()[numeracao - 1].load * 100, 2)'
+                            })
                         print("Configuração de uso da GPU adicionada.")
                     except ValueError:
                         print("Entrada inválida para os limites. Por favor, digite um número.")
@@ -666,7 +730,14 @@ def configurar_monitoramento() -> None:
                     try:
                         limite_atencao = float(input("Digite o limite de atenção (ex: 60.0): "))
                         limite_critico = float(input("Digite o limite crítico (ex: 90.0): "))
-                        configuracoes.append(('ºC', 'Temperatura da GPU', componente_id, limite_atencao, limite_critico, 'GPUtil.getGPUs()[numeracao -1].temperature'))
+                        configuracoes.append({ 
+                                'unidadeMedida': 'ºC',
+                                'descricao': 'Temperatura da GPU',
+                                'fkComponente': componente_id,
+                                'limiteAtencao': limite_atencao,
+                                'limiteCritico': limite_critico,
+                                'funcaoPython': 'GPUtil.getGPUs()[componente_numeracao - 1].temperature'
+                            })
                         print("Configuração de temperatura da GPU adicionada.")
                     except ValueError:
                         print("Entrada inválida para os limites. Por favor, digite um número.")
@@ -674,11 +745,12 @@ def configurar_monitoramento() -> None:
                     print("Opção inválida para GPU.")
 
         print("\n--- Configurações de monitoramento escolhidas ---")
-        for config in configuracoes:
-            print(config)
 
-        
-        return configuracoes    
+        # for config in configuracoes:
+        print(configuracoes)
+
+
+        post_configuracoes_monitoramento(configuracoes)    
 
 def init() -> None:
     '''
