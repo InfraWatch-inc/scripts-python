@@ -29,7 +29,7 @@ def gerar_script_sql(data_inicio, data_fim):
         horario_alerta = f"{str(hora).zfill(2)}:{str(minuto).zfill(2)}:{str(segundo).zfill(2)}"
         
         # Gerar um valor de fkConfiguracaoMonitoramento aleatório entre 6, 8, e 13
-        fk_configuracao_monitoramento = random.choice([6, 13])
+        fk_configuracao_monitoramento = random.choice([8, 20, 18])
         
         # Gerar valor do alerta e nível (agora apenas 1 para Moderado ou 2 para Crítico)
         nivel = random.choice([1, 2])  # Nível do alerta (1: Moderado, 2: Crítico)
