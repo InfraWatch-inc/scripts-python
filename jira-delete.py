@@ -1,4 +1,4 @@
-from jiraChamados import JIRA 
+from jira import JIRA 
 import os
 from datetime import datetime
 
