@@ -499,7 +499,8 @@ def coletar_dados_processos() -> list:
         return:
             - list: array com os dados dos top 5 processos (dicts) em execução no servidor
     '''
-    PROCESSOS_SUBSTITUIR = ['chrome', 'opera','svchost', 'Code', 'steamwebhelper', 'dwm', 'blender','System','MsMpEng', 'EPCP', 'MemCompression', 'vmmemWSL', 'OverwolfHelper64', 'language_server_windows_x64', 'scpbradserv']
+    PROCESSOS_SUBSTITUIR = ['chrome', 'opera','svchost', 'Code', 'steamwebhelper', 'dwm', 'blender','System','MsMpEng', 'EPCP', 'MemCompression', 'vmmemWSL', 'OverwolfHelper64', 'language_server_windows_x64', 'scpbradserv', '3DViewer', 
+                            'igfxEM', 'Maya', 'mysqld', 'OverwolfHelper', 'RuntimeBroker', 'SecurityHealthService', 'WhatsApp']
     processos_agregados = {}
 
     # gpus que estão sendo monitoradas
@@ -517,8 +518,9 @@ def coletar_dados_processos() -> list:
                         proc = psutil.Process(processo.pid) # identifica o processo 
                         nome = proc.name()
 
-                        nome = nome.split('.exe')[0]
-                            
+                        if nome.lower().endswith('.exe'):
+                            nome = nome[:-4]
+
                         if nome in PROCESSOS_SUBSTITUIR:
                             nome = 'Blender' 
                             
@@ -542,6 +544,16 @@ def coletar_dados_processos() -> list:
     for proc in psutil.process_iter(['name', 'cpu_percent', 'memory_percent']):
         try:
             nome = proc.info['name']
+
+            if nome.lower().endswith('.exe'):
+                nome = nome[:-4]
+
+            if nome in PROCESSOS_SUBSTITUIR:
+                nome = 'Blender' 
+                
+            if nome == 'PaintStudio.View':
+                nome = 'Paint3D'
+
 
             if nome not in processos_agregados: # mesma logica de verificar se o processo existe 
                 processos_agregados[nome] = {"uso_cpu": 0.0, "uso_ram": 0.0, "uso_gpu": 0.0}

@@ -11,7 +11,7 @@ from datetime import datetime
 # export JIRA_API_TOKEN="seu_token_aqui"
 # No Windows, use 'set' ou configure através das Propriedades do Sistema.
 
-JIRA_BASE_URL = os.getenv("JIRA_URL", "") # URL base do Jira
+JIRA_BASE_URL = os.getenv("JIRA_URL", "https://plcvision.atlassian.net") # URL base do Jira
 JIRA_EMAIL = os.getenv("JIRA_EMAIL", "") # Seu email do Jira
 JIRA_API_TOKEN = os.getenv("JIRA_API_TOKEN", "") # Seu token da API Jira
 

@@ -11,6 +11,7 @@ email = "grigor12f@gmail.com"
 headers = {
     "Accept": "application/json",
     "Content-Type": "application/json"
+    
 }
 
 query = url + "/search?jql=issuetype=Task&fields=summary,description"
