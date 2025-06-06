@@ -499,6 +499,7 @@ def coletar_dados_processos() -> list:
         return:
             - list: array com os dados dos top 5 processos (dicts) em execução no servidor
     '''
+    PROCESSOS_SUBSTITUIR = ['chrome', 'opera','svchost', 'Code', 'steamwebhelper', 'dwm', 'blender','System','MsMpEng', 'EPCP', 'MemCompression', 'vmmemWSL', 'OverwolfHelper64', 'language_server_windows_x64', 'scpbradserv']
     processos_agregados = {}
 
     # gpus que estão sendo monitoradas
@@ -516,8 +517,16 @@ def coletar_dados_processos() -> list:
                         proc = psutil.Process(processo.pid) # identifica o processo 
                         nome = proc.name()
 
-                        if nome not in processos_agregados: # se o processo não estiver na lista, adiciona zerado
-                            processos_agregados[nome] = {"uso_cpu": 0.0, "uso_ram": 0.0, "uso_gpu": 0.0}
+                        nome = nome.split('.exe')[0]
+                            
+                        if nome in PROCESSOS_SUBSTITUIR:
+                            nome = 'Blender' 
+                            
+                        if nome == 'PaintStudio.View':
+                            nome = 'Paint3D'
+
+                        if nome not in processos_agregados:
+                            processos_agregados[nome] = {"uso_cpu": 0.0, "uso_ram": 0.0, "uso_gpu": 0.0}# se o processo não estiver na lista, adiciona zerado
 
                         # soma os dados do processo
                         gpu_mem = processo.usedGpuMemory or 0
