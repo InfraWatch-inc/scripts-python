@@ -12,7 +12,7 @@ FUSO_HORARIO = timezone(timedelta(hours=-3))
 def obter_informacoes_sistema():
     info = {
         "cpu": psutil.cpu_percent(interval=1),
-        "temperatura": psutil.sensors_temperatures().get('coretemp', [{}])[0].get('current', None),
+        "temperatura": psutil.sensors_temperatures().get("coretemp",[])[0].current,
         "memoria": psutil.virtual_memory().percent,
         "disco": psutil.disk_usage('/').percent,
         "tempo_ativo": str(datetime.now(timezone.utc) - datetime.fromtimestamp(psutil.boot_time(), timezone.utc)),
@@ -25,7 +25,7 @@ def monitorar():
         data = obter_informacoes_sistema()
         try:
             response = requests.post(
-                f'{os.getenv("WEB_URL")}/monitorar/instancia',
+                f'{os.getenv("WEB_URL")}/monitoramento/instancia',
                 headers={"Content-Type": "application/json"},
                 data=json.dumps(data)
             )
